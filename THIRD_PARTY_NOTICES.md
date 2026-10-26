@@ -17,4 +17,15 @@ Files in this repository derived from OpenVitals (origin path → local path):
 
 | OpenVitals file | Local file |
 |---|---|
-| _(filled in as files are borrowed)_ | |
+| `app/src/main/kotlin/tech/mmarca/openvitals/healthconnect/HealthConnectMappers.kt` (route mapping) | `app/src/main/java/ru/vehq/hcsync/hc/HealthConnectSource.kt` |
+
+## Google health-samples
+
+- Project: https://github.com/android/health-samples
+- Copyright: The Android Open Source Project
+- License: Apache License 2.0
+- Snapshot used: commit `7183ab9b17330823a33e8216f81e67e2eeea2006` (2026-09-16)
+
+| health-samples file | Local file |
+|---|---|
+| `health-connect/HealthConnectSample/app/src/main/AndroidManifest.xml` (Health Connect intent-filters and `<queries>`) | `app/src/main/AndroidManifest.xml` |

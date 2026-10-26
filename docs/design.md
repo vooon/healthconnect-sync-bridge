@@ -27,9 +27,13 @@ All identifiers in this document are placeholders
 
 ```
 app/src/main/java/ru/vehq/hcsync/
-  MainActivity.kt           — Compose host, permission launchers
+  MainActivity.kt           — Compose host, permission launchers, rationale screen
+  model/Workout.kt          — Workout / RouteResult / RoutePoint (pure Kotlin)
+  model/ExerciseTypes.kt    — EXERCISE_TYPE_* → label
   ui/SyncScreen.kt          — the one screen
+  ui/ProbeReport.kt         — pure function: workouts → copyable text
   hc/HealthConnectSource.kt — reads sessions + routes → domain objects
+  hc/HealthConnectPermissions.kt — SDK status, granted set, requestable set
   gpx/GpxWriter.kt          — pure function: Workout -> String
   wanderer/WandererClient.kt— login, upload, cookie jar, one 401 retry
   sync/SyncEngine.kt        — read → filter uploaded → gpx → upload → persist

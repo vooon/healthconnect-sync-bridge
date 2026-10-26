@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Health Connect declarations (rationale intent-filters, <queries>) follow Google's
+  health-samples HealthConnectSample AndroidManifest.xml
+  (https://github.com/android/health-samples, commit 7183ab9, Apache-2.0).
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Health Connect data we read. Each must also be granted at runtime. -->
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <!-- Bulk route access. Only the user can grant it, under Additional access in Health Connect. -->
+    <uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES" />
+    <!-- Lets the WorkManager job read while we are not on screen (Health Connect feature, API 35+). -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+    <!-- Data older than 30 days; requested only if the user opts in to history. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+    <!-- Uploads to the Wanderer server. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"
@@ -15,7 +31,29 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Health Connect sends this when the user taps "privacy policy" in its permission dialog. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+
+            <!-- Same thing on Android 14+, where Health Connect is part of the OS. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
         </activity>
     </application>
+
+    <!-- Package visibility: lets us resolve the Health Connect provider and its settings intents. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <intent>
+            <action android:name="androidx.health.ACTION_HEALTH_CONNECT_SETTINGS" />
+        </intent>
+    </queries>
 
 </manifest>
