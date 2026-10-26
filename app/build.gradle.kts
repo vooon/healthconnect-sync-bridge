@@ -4,6 +4,23 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Release signing and version come from the environment (set by .github/workflows/release.yml);
+// a local `assembleRelease` without them produces an unsigned, uninstallable APK on purpose.
+val releaseStoreFile = System.getenv("WS_RELEASE_STORE_FILE")
+val releaseStorePassword = System.getenv("WS_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("WS_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("WS_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+    .all { !it.isNullOrBlank() }
+
+// Tag `v1.2.3` → versionName "1.2.3", versionCode 10203 (so each release outranks the last).
+val taggedVersion = System.getenv("WS_VERSION_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() }
+val taggedVersionCode = taggedVersion
+    ?.split(".")
+    ?.mapNotNull { it.takeWhile(Char::isDigit).toIntOrNull() }
+    ?.takeIf { it.size == 3 }
+    ?.let { (major, minor, patch) -> major * 10_000 + minor * 100 + patch }
+
 android {
     namespace = "ru.vehq.hcsync"
     compileSdk = 37
@@ -13,14 +30,31 @@ android {
         // Android 14: first release with Health Connect (and exercise routes) in the platform.
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = taggedVersionCode ?: 1
+        versionName = taggedVersion ?: "0.1.0-dev"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(checkNotNull(releaseStoreFile))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // Separate package so a dev build and the signed release can be installed side by side.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
-            // No release signing in this repo; a debug build is what gets installed.
+            // No code shrinking: the APK is small enough and R8 config is one more thing to maintain.
             isMinifyEnabled = false
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 

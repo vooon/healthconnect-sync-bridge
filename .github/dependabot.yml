@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Gradle plugins and libraries from gradle/libs.versions.toml.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for all non-major bumps keeps the noise down; majors (AGP, Kotlin) come alone.
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Stay on stable Health Connect releases; alphas change the API surface.
+      - dependency-name: androidx.health.connect:connect-client
+        versions: ['*-alpha*', '*-beta*', '*-rc*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

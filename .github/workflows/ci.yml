@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The daemon toolchain file pins Java 25; providing it here avoids a download per run.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # Caches ~/.gradle and validates the wrapper jar checksum.
+      - uses: gradle/actions/setup-gradle@v6
+
+      # ubuntu-latest ships the Android SDK (ANDROID_HOME) with licenses accepted; AGP downloads
+      # any missing platform/build-tools itself.
+      - name: Build, unit test, lint
+        run: ./gradlew assembleDebug testDebugUnitTest lintDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: wanderer-sync-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            app/build/reports/
+            app/build/test-results/

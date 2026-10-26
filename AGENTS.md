@@ -79,7 +79,9 @@ few lines:
 - Unit tests: `./gradlew testDebugUnitTest`
 - Lint: `./gradlew lintDebug`
 - Worker logs: `adb logcat -s SyncWorker`
-- Debug signing only; no release keystore in this repo.
+- Release: tag `vX.Y.Z` → `.github/workflows/release.yml` signs with the
+  keystore from GitHub secrets (`WS_RELEASE_*` env read in
+  `app/build.gradle.kts`). No keystore in this repo, ever.
 
 ## Critical rules
 - User directives are absolute: if the user says `DO NOT <action>`, do not

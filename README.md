@@ -1,5 +1,7 @@
 # Wanderer Sync (healthconnect-sync-bridge)
 
+[![CI](https://github.com/vooon/healthconnect-sync-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/vooon/healthconnect-sync-bridge/actions/workflows/ci.yml)
+
 An Android app that copies GPS-tracked workouts from **Health Connect** (where
 Samsung Health puts them, e.g. from a Galaxy Fit3) to a self-hosted
 [**Wanderer**](https://wanderer.to) instance as GPX trails. It runs in the
@@ -54,8 +56,8 @@ To install on the phone:
    ./gradlew installDebug
    ```
 
-The app appears as **Wanderer Sync**. The APK is debug-signed; that is all
-this project needs. (Android Studio users: open the folder, let it sync, and
+The app appears as **Wanderer Sync**. This is a debug build (package
+`ru.vehq.hcsync.debug`); signed release APKs are on the GitHub Releases page. (Android Studio users: open the folder, let it sync, and
 press Run.)
 
 ## First run
@@ -111,6 +113,38 @@ expect drift of a few minutes, and up to the interval after a reboot.
   Google but still functional.
 - A sync started from the screen is cancelled if the app is killed mid-run;
   everything uploaded before that is already recorded.
+
+## Releases
+
+Every push to `main` runs CI (build, unit tests, lint) and keeps the debug APK
+as a workflow artifact. A release is made by tagging:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The Release workflow builds a **signed** release APK, names it
+`wanderer-sync-v0.1.0.apk`, and attaches it to a GitHub release with
+generated notes. The version name is the tag; the version code is derived
+from it (`v1.2.3` → `10203`), so every release upgrades the previous one.
+
+Signing needs a keystore once, kept only in GitHub secrets:
+
+```sh
+keytool -genkeypair -v -keystore release.jks -alias wanderer-sync \
+  -keyalg RSA -keysize 4096 -validity 36500
+base64 -w0 release.jks   # → secret ANDROID_KEYSTORE_BASE64
+```
+
+Add four repository secrets: `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`wanderer-sync`),
+`ANDROID_KEY_PASSWORD`. Keep `release.jks` somewhere safe and never commit
+it; losing it means users must uninstall before the next update.
+
+Debug builds use the package id `ru.vehq.hcsync.debug`, so a development
+install and the release can live on the phone side by side (each with its own
+Health Connect permissions and settings). Dependabot opens weekly PRs for
+Gradle dependencies and GitHub Actions.
 
 ## Development
 

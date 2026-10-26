@@ -42,6 +42,9 @@ app/src/main/java/ru/vehq/hcsync/
   data/SyncState.kt         — DataStore: done ids, totals, newest uploaded end, last run/result
   data/Secrets.kt           — EncryptedSharedPreferences: Wanderer API token
   sync/SyncScheduler.kt     — enqueues the unique PeriodicWorkRequest
+.github/workflows/ci.yml    — build + unit tests + lint on push/PR, debug APK artifact
+.github/workflows/release.yml — on tag v*: signed release APK attached to a GitHub release
+.github/dependabot.yml      — weekly Gradle catalog + Actions updates
 ```
 
 `SyncEngine` is pure Kotlin: `HealthConnectSource`, `WandererClient` and
