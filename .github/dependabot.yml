@@ -9,10 +9,7 @@ updates:
       # One PR for all non-major bumps keeps the noise down; majors (AGP, Kotlin) come alone.
       minor-and-patch:
         update-types: [minor, patch]
-    ignore:
-      # Stay on stable Health Connect releases; alphas change the API surface.
-      - dependency-name: androidx.health.connect:connect-client
-        versions: ['*-alpha*', '*-beta*', '*-rc*']
+    # Pre-releases (Health Connect alphas etc.) are never proposed while the pinned version is stable.
 
   - package-ecosystem: github-actions
     directory: /
