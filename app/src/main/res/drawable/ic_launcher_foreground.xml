@@ -1,20 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A simple trail line with two waypoints. -->
+<!-- Launcher foreground: a trail with two waypoints inside two "sync" arrows. Everything stays
+     within the 66dp safe circle of the 108dp adaptive-icon canvas. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- sync arrows: two arcs of a 30-unit circle, each ending under a tangent arrowhead -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="6"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M30,74 C40,50 50,80 60,56 C66,42 72,46 78,34" />
+        android:pathData="M28,39 A30,30 0 0 1 77.6,35.5" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30,74 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+        android:pathData="M84.4,44.2 L83.2,31.2 L72.1,39.8 Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M80,69 A30,30 0 0 1 30.4,72.5" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M78,34 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+        android:pathData="M23.6,63.8 L24.8,76.8 L35.9,68.2 Z" />
+    <!-- trail -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M40,63 C46,48 52,67 58,53 C61,46 64,48 68,44" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,63 m-4.5,0 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,44 m-4.5,0 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0" />
 </vector>
