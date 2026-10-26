@@ -197,12 +197,13 @@ change.
 
 ## Screen
 
-Fields: server URL, username, password, sync interval, "include history
-before install" toggle. Buttons: Grant permissions, Test connection (login
-only), Sync now (foreground, handles `ConsentRequired`), Probe (lists the
-last 30 days of sessions with type, start, route status and point count,
-copyable — the de-risking check that the watch app really writes routes).
-Status area: last run, last result, Health Connect SDK status.
+Fields: server URL, API token (password-masked), sync interval, "include
+workouts older than 30 days" toggle. Buttons: Save & schedule, Test
+connection (`GET /api-token`), Grant permissions, Open Health Connect, Sync
+now (foreground, resolves `ConsentRequired` through the route contract),
+Probe (lists the last 30 days of sessions with type, start, route status and
+point count), Copy. Status: Health Connect SDK status, per-permission ✔/✘,
+last run, last result, and a monospace output area for probe / sync text.
 
 ## Security / logging
 
