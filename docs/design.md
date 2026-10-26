@@ -195,7 +195,11 @@ flowchart TD
    years when the history setting is on **and** `READ_HEALTH_DATA_HISTORY`
    was granted. Re-reading the window every run is cheap (dozens of
    records) and keeps the logic stateless apart from the done-id set.
-2. Records whose id is in the done set are skipped without counting.
+2. Records whose id is in the done set are skipped without counting. For
+   any other routed record the engine first asks Wanderer
+   (`GET /trail?filter=description ~ "<record id>"`); a hit is marked done
+   without uploading. The local done set is therefore only a cache, and a
+   reinstall or package change cannot create duplicate trails.
 3. `NoData` (or a `Data` route with zero points) is final: the id is marked
    done so it is never re-reported. `ConsentRequired` is counted but not
    marked, so it uploads once the user grants route access.

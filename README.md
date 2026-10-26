@@ -109,9 +109,11 @@ expect drift of a few minutes, and up to the interval after a reboot.
   and SpO₂ are not exported.
 - One `<trk>`/`<trkseg>` per workout: pauses are not split into segments.
 - Wanderer's own duplicate check is bypassed (`ignoreDuplicates`), because a
-  daily walk on the same loop would otherwise be rejected; deduplication is
-  by Health Connect record id on the phone. Reinstalling the app forgets
-  that list and re-uploads the last 30 days.
+  daily walk on the same loop would otherwise be rejected. Deduplication is
+  by Health Connect record id: the phone remembers what it uploaded and, for
+  anything it does not remember, asks Wanderer whether a trail with that id
+  in its description already exists. Trails whose description was edited by
+  hand lose that marker.
 - Trail category and date are whatever Wanderer infers from the GPX; nothing
   is patched afterwards.
 - `androidx.security:security-crypto`, used for the token, is deprecated by

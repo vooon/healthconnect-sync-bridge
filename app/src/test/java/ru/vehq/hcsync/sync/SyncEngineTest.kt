@@ -48,9 +48,17 @@ class SyncEngineTest {
         }
     }
 
-    private class FakeClient(val failOn: (String) -> Exception? = { null }) : WandererClient {
+    private class FakeClient(
+        val failOn: (String) -> Exception? = { null },
+        val onServer: Map<String, String> = emptyMap(), // record id -> trail id
+    ) : WandererClient {
         val uploads = ArrayList<Pair<String, String>>() // fileName to gpx
+        val lookups = ArrayList<String>()
         override suspend fun testConnection() = "ok"
+        override suspend fun findTrailByRecordId(recordId: String): String? {
+            lookups += recordId
+            return onServer[recordId]
+        }
         override suspend fun uploadGpx(gpx: String, fileName: String): String {
             failOn(fileName)?.let { throw it }
             uploads += fileName to gpx
@@ -96,6 +104,29 @@ class SyncEngineTest {
         assertEquals("uploaded 2", state.data.lastResult)
         assertEquals(2, state.data.lastSeen)
         assertEquals(now.minus(Duration.ofDays(30)), source.lastFrom)
+    }
+
+    @Test
+    fun recordAlreadyOnServerIsMarkedDoneWithoutUpload() = runTest {
+        val source = FakeSource(listOf(workout("a", 2, RouteResult.Data(pts(2))), workout("b", 1, RouteResult.Data(pts(2)))))
+        val client = FakeClient(onServer = mapOf("a" to "trail-old"))
+        val state = MemoryState()
+        val r = engine(source, client, state).run(Duration.ofDays(30))
+
+        assertEquals(listOf("a", "b"), client.lookups)
+        assertEquals(1, r.foundOnServer)
+        assertEquals(1, r.uploaded)
+        assertEquals(setOf("a", "b"), state.data.doneIds)
+        assertEquals(1, client.uploads.size)
+        assertEquals("uploaded 1, already on server 1", r.summary())
+    }
+
+    @Test
+    fun locallyDoneIdsAreNotLookedUpOnServer() = runTest {
+        val source = FakeSource(listOf(workout("a", 1, RouteResult.Data(pts(2)))))
+        val client = FakeClient()
+        engine(source, client, MemoryState(initial = setOf("a"))).run(Duration.ofDays(30))
+        assertTrue(client.lookups.isEmpty())
     }
 
     @Test

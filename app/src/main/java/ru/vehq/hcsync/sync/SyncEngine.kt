@@ -18,6 +18,8 @@ data class SyncResult(
     val skippedNoRoute: Int = 0,
     val skippedConsent: Int = 0,
     val alreadyDone: Int = 0,
+    /** Records the server already had (found by record id) and that were marked done without upload. */
+    val foundOnServer: Int = 0,
     /** Set when the run stopped early; earlier uploads in the same run are already persisted. */
     val failure: String? = null,
     /** True for transient errors (network, 5xx) where WorkManager should retry with backoff. */
@@ -28,6 +30,7 @@ data class SyncResult(
         append("uploaded ").append(uploaded)
         if (skippedNoRoute > 0) append(", no route ").append(skippedNoRoute)
         if (skippedConsent > 0) append(", consent needed ").append(skippedConsent)
+        if (foundOnServer > 0) append(", already on server ").append(foundOnServer)
         if (failure != null) append(", failed: ").append(failure)
     }
 }
@@ -86,6 +89,14 @@ class SyncEngine(
                         continue
                     }
                     try {
+                        // Local done-list is only a cache; ask Wanderer before spending an upload.
+                        val existing = client.findTrailByRecordId(w.id)
+                        if (existing != null) {
+                            state.markDone(w.id, uploadedEnd = w.endTime)
+                            result = result.copy(foundOnServer = result.foundOnServer + 1)
+                            log("record ${w.id} already on server as trail $existing")
+                            continue
+                        }
                         val points = if (includeSensors) {
                             SensorMerge.merge(route.points, source.readSensorSamples(w.startTime, w.endTime), w.exerciseType)
                         } else {
