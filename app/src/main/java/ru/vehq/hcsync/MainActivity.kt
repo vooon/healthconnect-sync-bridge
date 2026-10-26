@@ -98,6 +98,7 @@ class MainActivity : ComponentActivity() {
             onOpenHealthConnect = ::openHealthConnect,
             onTestConnection = { lifecycleScope.launch { busy(Target.SERVER) { testConnection() } } },
             onSyncNow = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow() } } },
+            onResync = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow(recheckServer = true) } } },
             onProbe = { lifecycleScope.launch { busy(Target.OUTPUT) { probe() } } },
             onCopyOutput = ::copyOutput,
         )
@@ -231,14 +232,19 @@ class MainActivity : ComponentActivity() {
         return client(saved).testConnection()
     }
 
-    private suspend fun syncNow(): String {
+    private suspend fun syncNow(recheckServer: Boolean = false): String {
         val saved = saveSettings()
         require(saved.serverUrl.isNotBlank()) { "Enter the server URL first" }
         val granted = permissions.granted()
         require(HealthConnectPermissions.READ_EXERCISE in granted) { "Grant the exercise permission first" }
         val engine = SyncEngine(source, client(saved), syncState, log = { Log.i(TAG, it) })
         val lookback = SyncWorker.lookbackFor(saved.includeHistory, HealthConnectPermissions.READ_HISTORY in granted)
-        val result = engine.run(lookback, consent = ::askRouteConsent, includeSensors = saved.includeSensors)
+        val result = engine.run(
+            lookback,
+            includeSensors = saved.includeSensors,
+            recheckServer = recheckServer,
+            consent = ::askRouteConsent,
+        )
         refreshPermissions()
         return buildString {
             append(result.summary()).append('\n')
