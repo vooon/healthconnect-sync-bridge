@@ -36,16 +36,17 @@ app/src/main/java/ru/vehq/hcsync/
   hc/HealthConnectPermissions.kt — SDK status, granted set, requestable set
   gpx/GpxWriter.kt          — pure function: Workout -> String
   wanderer/WandererClient.kt— login, upload, cookie jar, one 401 retry
-  sync/SyncEngine.kt        — read → filter uploaded → gpx → upload → persist
-  sync/SyncWorker.kt        — CoroutineWorker calling SyncEngine
-  data/Settings.kt          — DataStore: server url, username, interval, history opt-in
-  data/SyncState.kt         — DataStore: uploaded ids, last run, last result
-  data/Secrets.kt           — EncryptedSharedPreferences: password, cookie
+  sync/SyncEngine.kt        — read → filter done → gpx → upload → persist (pure Kotlin)
+  sync/SyncWorker.kt        — CoroutineWorker wiring real deps into SyncEngine
+  data/Settings.kt          — DataStore: server url, interval, history opt-in
+  data/SyncState.kt         — DataStore: done ids, newest uploaded end, last run/result
+  data/Secrets.kt           — EncryptedSharedPreferences: Wanderer API token
+  sync/SyncScheduler.kt     — enqueues the unique PeriodicWorkRequest
 ```
 
-`SyncEngine` is pure Kotlin: `HealthConnectSource` and `WandererClient` are
-small interfaces injected by hand, so the engine is unit-tested on the JVM
-without an emulator.
+`SyncEngine` is pure Kotlin: `HealthConnectSource`, `WandererClient` and
+`SyncStateStore` are small interfaces injected by hand, so the engine is
+unit-tested on the JVM without an emulator.
 
 ## Health Connect (read side)
 
@@ -159,28 +160,33 @@ test resource.
 
 ```mermaid
 flowchart TD
-    A[Read sessions since last endTime] --> B{id already uploaded?}
-    B -->|yes| Z[drop]
+    A[Read sessions in now - lookback .. now] --> B{id in done set?}
+    B -->|yes| Z[skip silently]
     B -->|no| C{route result}
-    C -->|NoData| S1[skip, count no-route]
-    C -->|ConsentRequired, worker| S2[skip, count consent]
-    C -->|ConsentRequired, foreground| R[request route consent] --> C
+    C -->|NoData or empty| S1[mark done, count no-route]
+    C -->|ConsentRequired, worker| S2[count consent, not marked]
+    C -->|ConsentRequired, foreground| R[ExerciseRouteRequestContract] --> C
     C -->|Data| G[GpxWriter] --> U[PUT /trail/upload]
-    U -->|ok| P[persist id + endTime] --> N[next record]
+    U -->|ok| P[mark done + newest end time] --> N[next record]
     U -->|error| F[record failure, stop run]
 ```
 
-
-1. Read sessions from the last successful `endTime` (or 30 days back / full
-   history on first run, per setting) to now.
-2. Drop records whose id is already in the uploaded set.
-3. Skip and count `NoData` and `ConsentRequired` routes (worker) — or request
-   consent (foreground).
-4. For each remaining record: build GPX → upload → **then** record the id and
-   advance the newest `endTime`. State is persisted per successful upload, so
-   a partial failure keeps earlier successes and retries only the rest.
-5. Result summary (uploaded / skipped-no-route / skipped-consent / failed
-   with reason) and the run time are stored for the status area.
+1. The read window is always `now - lookback` to `now`: 30 days, or ten
+   years when the history setting is on **and** `READ_HEALTH_DATA_HISTORY`
+   was granted. Re-reading the window every run is cheap (dozens of
+   records) and keeps the logic stateless apart from the done-id set.
+2. Records whose id is in the done set are skipped without counting.
+3. `NoData` (or a `Data` route with zero points) is final: the id is marked
+   done so it is never re-reported. `ConsentRequired` is counted but not
+   marked, so it uploads once the user grants route access.
+4. Records are processed oldest first. After each successful upload the id
+   is added to the done set and the newest uploaded end time is updated,
+   before the next record starts. A failure stops the run; earlier uploads
+   stay recorded, the failed record is retried next run.
+5. Failures are *retryable* (WorkManager backoff) for IO errors, 5xx, 408
+   and 429; a 401 (bad token) or 400 (bad file) is reported and not retried.
+6. The run's summary (`uploaded N, no route N, consent needed N, failed: …`)
+   and its time are stored for the status area.
 
 ## Scheduling
 
