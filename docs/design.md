@@ -3,10 +3,13 @@
 Wanderer Sync bridges two systems on the phone itself, with no cloud
 intermediary:
 
-```
-Samsung Health ──▶ Health Connect ──▶ Wanderer Sync ──▶ GPX ──▶ Wanderer (self-hosted)
-   (Galaxy Fit3)   (ExerciseSession     (this app)              PUT /api/v1/trail/upload
-                    + ExerciseRoute)
+```mermaid
+flowchart LR
+    W[Galaxy Fit3] --> SH[Samsung Health]
+    SH -->|ExerciseSessionRecord + ExerciseRoute| HC[Health Connect]
+    HC -->|readRecords| APP[Wanderer Sync]
+    APP -->|GpxWriter| GPX[GPX 1.1]
+    GPX -->|PUT /api/v1/trail/upload| WD[Wanderer, self-hosted]
 ```
 
 Single user, single server. It runs periodically in the background, never
@@ -23,7 +26,7 @@ All identifiers in this document are placeholders
 ## Components
 
 ```
-app/src/main/java/dev/hcbridge/sync/
+app/src/main/java/ru/vehq/hcsync/
   MainActivity.kt           — Compose host, permission launchers
   ui/SyncScreen.kt          — the one screen
   hc/HealthConnectSource.kt — reads sessions + routes → domain objects
@@ -62,7 +65,13 @@ against the pinned SDK version and update this section if anything moved.
   `PermissionController.createRequestPermissionResultContract()`):
   - `android.permission.health.READ_EXERCISE`
   - `android.permission.health.READ_EXERCISE_ROUTES` — bulk route access,
-    avoids per-record consent dialogs.
+    avoids per-record consent dialogs. **Not grantable from the app**: the
+    request contract ignores it and the normal permission list does not show
+    it. The user must open Health Connect → App permissions → Wanderer Sync →
+    *Additional access* → *Exercise routes* → *Always allow*. The app only
+    detects the grant (`getGrantedPermissions()`), explains the three taps and
+    deep-links into Health Connect settings. Source: OpenVitals onboarding
+    and its issue #226 (same watch, same symptom).
   - `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` — needed for
     WorkManager reads; API 35+, requested conditionally.
   - `android.permission.health.READ_HEALTH_DATA_HISTORY` — only when the
@@ -117,6 +126,20 @@ test resource.
 
 ## Sync engine rules
 
+```mermaid
+flowchart TD
+    A[Read sessions since last endTime] --> B{id already uploaded?}
+    B -->|yes| Z[drop]
+    B -->|no| C{route result}
+    C -->|NoData| S1[skip, count no-route]
+    C -->|ConsentRequired, worker| S2[skip, count consent]
+    C -->|ConsentRequired, foreground| R[request route consent] --> C
+    C -->|Data| G[GpxWriter] --> U[PUT /trail/upload]
+    U -->|ok| P[persist id + endTime] --> N[next record]
+    U -->|error| F[record failure, stop run]
+```
+
+
 1. Read sessions from the last successful `endTime` (or 30 days back / full
    history on first run, per setting) to now.
 2. Drop records whose id is already in the uploaded set.
@@ -151,3 +174,26 @@ Status area: last run, last result, Health Connect SDK status.
 - Successful uploads log the Wanderer trail id and the Health Connect record
   id. Worker logs are tagged `SyncWorker` (`adb logcat -s SyncWorker`).
 - Network calls and Health Connect reads run on `Dispatchers.IO` only.
+
+## Prior art
+
+[OpenVitals](https://github.com/OpenVitals-MTU/android-app) (AGPL-3, same
+licence as this repo) reads the same Health Connect records from the same
+watch and exports GPX. Borrow from it rather than re-deriving:
+
+- `healthconnect/HealthConnectMappers.kt` — `ExerciseRouteResult` → points
+  (`Data` / `ConsentRequired` / `NoData`, plus an `else` branch because the
+  type is not sealed).
+- `healthconnect/HealthConnectPermissionService.kt` — history and background
+  permissions are only requested when `HealthConnectFeatures` reports the
+  feature available; `READ_EXERCISE_ROUTES` is handled as a manual toggle.
+- `features/activity/ActivityRouteExport.kt` — `XmlSerializer`-based GPX 1.1
+  writer (`creator`, `trk/name/desc/trkseg/trkpt/ele/time`).
+- `AndroidManifest.xml` — `ACTION_SHOW_PERMISSIONS_RATIONALE` activity and
+  the `VIEW_PERMISSION_USAGE` activity-alias guarded by
+  `START_VIEW_PERMISSION_USAGE`, plus `<queries>` intents for opening Health
+  Connect settings.
+- Its `onboarding_routes_*` strings are the user-facing wording for the
+  three-tap route permission.
+
+Anything copied keeps a comment naming the source file.

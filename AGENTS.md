@@ -38,6 +38,7 @@ strings. Never log the password or cookie value at any log level.
   and `androidx.health.connect:connect-client` (newest **stable**) only after
   checking the published version, never from memory.
 - Jetpack Compose + Material 3, single screen, no XML layouts, no navigation.
+- Diagrams in docs use Mermaid fenced blocks, not ASCII art.
 - `androidx.work:work-runtime-ktx` for scheduling,
   `androidx.datastore:datastore-preferences` for settings and sync state,
   `androidx.security:security-crypto` for the password and session cookie,
@@ -45,7 +46,7 @@ strings. Never log the password or cookie value at any log level.
 - GPX 1.1 is written by hand (`StringBuilder` / `XmlSerializer`); no GPX lib.
 - Tests: JUnit on the JVM; OkHttp `MockWebServer` for the Wanderer client;
   GPX output validated against the bundled GPX 1.1 XSD (test resource).
-- Package `dev.hcbridge.sync`, flat layout (see `docs/design.md`).
+- Package `ru.vehq.hcsync` (reverse of `hcsync.vehq.ru`), flat layout (see `docs/design.md`).
   `SyncEngine` depends only on small interfaces so it runs in plain JUnit.
 - Non-obvious Android boilerplate (manifest entries, permission contracts,
   activity-aliases, WorkManager wiring) gets a one-line comment saying *why*
