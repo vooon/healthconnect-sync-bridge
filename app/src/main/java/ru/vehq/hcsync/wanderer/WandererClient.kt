@@ -12,7 +12,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 /** Write side of the bridge. An interface so SyncEngine can be tested without a server. */
 interface WandererClient {
@@ -98,10 +98,21 @@ class OkHttpWandererClient(
     companion object {
         val GPX_MEDIA_TYPE = "application/gpx+xml".toMediaType()
 
+        /** Upper bound for one request including the server's GPX parsing / elevation correction. */
+        val CALL_TIMEOUT: Duration = Duration.ofMinutes(3)
+
+        /**
+         * Generous limits: a self-hosted Wanderer may sit behind a VPN on slow storage and only
+         * answers an upload after parsing the file, correcting elevation and indexing the trail.
+         * A timeout surfaces as a retryable IOException; the record-id lookup before the next
+         * attempt prevents a duplicate if the server had in fact finished.
+         */
         fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(Duration.ofSeconds(30))
+            .writeTimeout(Duration.ofSeconds(90))
+            .readTimeout(Duration.ofSeconds(120))
+            .callTimeout(CALL_TIMEOUT)
+            .retryOnConnectionFailure(true)
             .build()
 
         /** Accepts `https://host`, `https://host/`, or `https://host/api/v1`; always yields `…/api/v1/`. */

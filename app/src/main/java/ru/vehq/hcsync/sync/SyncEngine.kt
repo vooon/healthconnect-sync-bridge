@@ -24,6 +24,8 @@ data class SyncResult(
     val failure: String? = null,
     /** True for transient errors (network, 5xx) where WorkManager should retry with backoff. */
     val retryable: Boolean = false,
+    /** True when the run stopped on its time budget with records still to upload. */
+    val moreWork: Boolean = false,
     val uploadedTrailIds: List<String> = emptyList(),
 ) {
     fun summary(): String = buildString {
@@ -32,6 +34,7 @@ data class SyncResult(
         if (skippedConsent > 0) append(", consent needed ").append(skippedConsent)
         if (foundOnServer > 0) append(", already on server ").append(foundOnServer)
         if (failure != null) append(", failed: ").append(failure)
+        if (moreWork) append(", more pending")
     }
 }
 
@@ -50,14 +53,18 @@ class SyncEngine(
     /**
      * @param lookback       how far back to read; 30 days without the history permission, more with it.
      * @param includeSensors merge heart rate / cadence samples into the track points.
+     * @param budget         stop starting new uploads once this much time has passed (background
+     *                       runs must finish inside WorkManager's 10-minute limit); null = unlimited.
      * @param consent        foreground only: asks the user for a single record's route; null = skip & count.
      */
     suspend fun run(
         lookback: Duration,
         includeSensors: Boolean = false,
+        budget: Duration? = null,
         consent: (suspend (Workout) -> RouteResult?)? = null,
     ): SyncResult {
         val now = clock()
+        val deadline = budget?.let { now.plus(it) }
         val done = state.load().doneIds
         val workouts = source.readWorkouts(now.minus(lookback), now).sortedBy { it.startTime }
 
@@ -83,6 +90,12 @@ class SyncEngine(
                     result = result.copy(skippedConsent = result.skippedConsent + 1)
                 }
                 is RouteResult.Data -> {
+                    if (deadline != null && clock().isAfter(deadline)) {
+                        // Leave the rest for the next run; everything so far is already persisted.
+                        result = result.copy(moreWork = true)
+                        log("time budget exhausted, deferring remaining records")
+                        break
+                    }
                     if (route.points.isEmpty()) {
                         state.markDone(w.id, uploadedEnd = null)
                         result = result.copy(skippedNoRoute = result.skippedNoRoute + 1)

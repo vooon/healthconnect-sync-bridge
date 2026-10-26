@@ -211,6 +211,16 @@ flowchart TD
    and 429; a 401 (bad token) or 400 (bad file) is reported and not retried.
 6. The run's summary (`uploaded N, no route N, consent needed N, failed: …`)
    and its time are stored for the status area.
+7. Background runs get a 6-minute budget (WorkManager kills a worker at
+   10 min): once it is spent, remaining records are left for a retry that
+   WorkManager schedules after its backoff, and the summary says "more
+   pending". Foreground runs have no budget.
+
+HTTP limits (`OkHttpWandererClient.defaultHttpClient`): connect 30 s, write
+90 s, read 120 s, whole call 3 min. A self-hosted Wanderer may answer an
+upload only after parsing, elevation correction and indexing, so a timeout is
+treated as retryable and the record-id lookup before the retry prevents a
+duplicate if the server had finished after all.
 
 ## Scheduling
 

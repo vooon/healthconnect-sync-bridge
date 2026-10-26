@@ -51,7 +51,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val lookback = lookbackFor(settings.includeHistory, HealthConnectPermissions.READ_HISTORY in granted)
 
         val result = try {
-            engine.run(lookback, includeSensors = settings.includeSensors)
+            engine.run(lookback, includeSensors = settings.includeSensors, budget = RUN_BUDGET)
         } catch (e: Exception) {
             // Reading Health Connect itself failed (e.g. SecurityException); engine never persisted a run.
             Log.w(TAG, "sync failed before upload", e)
@@ -59,12 +59,16 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             return Result.success()
         }
         Log.i(TAG, "run finished: ${result.summary()}")
-        return if (result.retryable) Result.retry() else Result.success()
+        // retry(): WorkManager re-runs after backoff, i.e. soon, instead of waiting a full interval.
+        return if (result.retryable || result.moreWork) Result.retry() else Result.success()
     }
 
     companion object {
         /** Tag to filter with: `adb logcat -s SyncWorker`. */
         const val TAG = "SyncWorker"
+
+        /** WorkManager stops a worker after 10 min; stop starting uploads well before that. */
+        val RUN_BUDGET: Duration = Duration.ofMinutes(6)
 
         /** 30 days is all Health Connect allows without READ_HEALTH_DATA_HISTORY. */
         fun lookbackFor(includeHistory: Boolean, historyGranted: Boolean): Duration =
