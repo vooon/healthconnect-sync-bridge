@@ -71,6 +71,7 @@ class SyncScreenActions(
     val onOpenHealthConnect: () -> Unit,
     val onTestConnection: () -> Unit,
     val onSyncNow: () -> Unit,
+    val onResync: () -> Unit,
     val onProbe: () -> Unit,
     val onCopyOutput: () -> Unit,
 )
@@ -157,9 +158,15 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         Text("Last result: " + (state.lastResult ?: "–"))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSyncNow, enabled = canAct) { Text(if (state.busy) "Working…" else "Sync now") }
+            OutlinedButton(onClick = actions.onResync, enabled = canAct) { Text("Re-sync") }
             OutlinedButton(onClick = actions.onProbe, enabled = canAct) { Text("Probe") }
             OutlinedButton(onClick = actions.onCopyOutput, enabled = state.output.isNotEmpty()) { Text("Copy") }
         }
+        Text(
+            "Re-sync ignores this phone's list of uploaded workouts and asks the server about each one; " +
+                "use it after deleting trails on Wanderer. Nothing is uploaded twice.",
+            style = MaterialTheme.typography.bodySmall,
+        )
         NoticeText(state.syncNotice)
         if (state.output.isNotEmpty()) {
             SelectionContainer {

@@ -130,6 +130,20 @@ class SyncEngineTest {
     }
 
     @Test
+    fun recheckServerIgnoresLocalListAndUploadsWhatServerLacks() = runTest {
+        val source = FakeSource(listOf(workout("a", 2, RouteResult.Data(pts(2))), workout("b", 1, RouteResult.Data(pts(2)))))
+        val client = FakeClient(onServer = mapOf("b" to "trail-b"))
+        val state = MemoryState(initial = setOf("a", "b")) // phone thinks both are done; server lost "a"
+        val r = engine(source, client, state).run(Duration.ofDays(30), recheckServer = true)
+
+        assertEquals(listOf("a", "b"), client.lookups)
+        assertEquals(1, r.uploaded)
+        assertEquals(1, r.foundOnServer)
+        assertEquals(0, r.alreadyDone)
+        assertEquals(listOf("Walk 2026-03-30 12_00.gpx"), client.uploads.map { it.first })
+    }
+
+    @Test
     fun skipsIdsAlreadyDone() = runTest {
         val source = FakeSource(listOf(workout("a", 1, RouteResult.Data(pts(2))), workout("b", 2, RouteResult.Data(pts(2)))))
         val client = FakeClient()

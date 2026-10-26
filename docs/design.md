@@ -199,7 +199,9 @@ flowchart TD
    any other routed record the engine first asks Wanderer
    (`GET /trail?filter=description ~ "<record id>"`); a hit is marked done
    without uploading. The local done set is therefore only a cache, and a
-   reinstall or package change cannot create duplicate trails.
+   reinstall or package change cannot create duplicate trails. The screen's
+   **Re-sync** button runs with the local set ignored, so after trails were
+   deleted on the server the next run re-uploads exactly those.
 3. `NoData` (or a `Data` route with zero points) is final: the id is marked
    done so it is never re-reported. `ConsentRequired` is counted but not
    marked, so it uploads once the user grants route access.
@@ -237,6 +239,7 @@ Fields: server URL, API token (password-masked), sync interval, toggles for
 Wi-Fi only, charging only and "include workouts older than 30 days". Buttons: Save & schedule, Test
 connection (`GET /api-token`), Grant permissions, Open Health Connect, Sync
 now (foreground, resolves `ConsentRequired` through the route contract),
+Re-sync (same, but asks the server about every workout in the window),
 Probe (lists the last 30 days of sessions with type, start, route status and
 point count), Copy. Status: Health Connect SDK status, per-permission ✔/✘,
 running totals (trails uploaded, sessions without route), last run with

@@ -76,7 +76,9 @@ press Run.)
    (`Data(N pts)`, `NoData`, `ConsentRequired`). `NoData` walks have no GPS
    track and are skipped for good.
 5. **Sync now** uploads every routed workout and prints the Wanderer trail
-   ids. **Save & schedule** (also done by Test/Sync) starts the background
+   ids. **Re-sync** does the same but ignores what the phone remembers and
+   asks the server about each workout; use it after deleting trails on
+   Wanderer to get them back. **Save & schedule** (also done by Test/Sync) starts the background
    job at the chosen interval.
 
 Background runs happen only on Wi-Fi by default; turn "only on Wi-Fi" off to

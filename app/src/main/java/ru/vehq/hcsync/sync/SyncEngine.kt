@@ -55,17 +55,20 @@ class SyncEngine(
      * @param includeSensors merge heart rate / cadence samples into the track points.
      * @param budget         stop starting new uploads once this much time has passed (background
      *                       runs must finish inside WorkManager's 10-minute limit); null = unlimited.
+     * @param recheckServer  ignore the phone's done list and ask Wanderer about every record; used
+     *                       after trails were deleted on the server. Safe: nothing uploads twice.
      * @param consent        foreground only: asks the user for a single record's route; null = skip & count.
      */
     suspend fun run(
         lookback: Duration,
         includeSensors: Boolean = false,
         budget: Duration? = null,
+        recheckServer: Boolean = false,
         consent: (suspend (Workout) -> RouteResult?)? = null,
     ): SyncResult {
         val now = clock()
         val deadline = budget?.let { now.plus(it) }
-        val done = state.load().doneIds
+        val done = if (recheckServer) emptySet() else state.load().doneIds
         val workouts = source.readWorkouts(now.minus(lookback), now).sortedBy { it.startTime }
 
         var result = SyncResult()
