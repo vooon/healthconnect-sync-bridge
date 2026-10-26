@@ -98,21 +98,45 @@ against the pinned SDK version and update this section if anything moved.
 ## Wanderer (write side)
 
 Docs: https://wanderer.to/guides/api and
-https://github.com/Flomp/wanderer/wiki/API. Verify before changing the
-client; summary as understood at design time:
+https://github.com/Flomp/wanderer/wiki/API. The facts below were verified
+against the Wanderer source at commit `58d2e3d` (2026-10-25),
+`web/src/hooks.server.ts`, `web/src/routes/api/v1/{auth/login,trail/upload}/+server.ts`
+and `web/src/lib/util/gpx_util.ts`.
 
 - Base URL: `http(s)://<host>/api/v1`.
-- Login: `POST /auth/login` with JSON `{"username": "...", "password": "..."}`.
-  The response sets an auth **cookie** that all later calls must send. The
-  client keeps it in a persisting `CookieJar`; on any `401` it logs in again
-  once and retries; a second `401` fails the run cleanly.
-- Upload: `PUT /trail/upload`, `Content-Type: application/gpx+xml`, body =
-  raw GPX bytes. Wanderer parses the file and creates a trail, inferring
-  name/length/elevation. The response carries the created trail id, which is
-  logged.
+- **Auth, preferred: API token.** Wanderer issues per-user API tokens under
+  Settings → Account → API tokens (they start with `wanderer_key`). Send
+  `Authorization: Bearer <token>` on every `/api/*` call; the server verifies
+  it against `/auth/token` per request and answers `401 {"message":
+  "invalid_token"}` when revoked. No login round-trip, no password on the
+  phone, no cookie to persist.
+- Auth, fallback: `POST /auth/login` with JSON `{"username": "...",
+  "password": "..."}` (or `email`; password 8–72 chars). The response body is
+  the PocketBase auth record and the response carries `Set-Cookie: pb_auth=…`
+  (`SameSite=Lax`, not HttpOnly). Later calls send that cookie. Only needed if
+  the server has API tokens disabled.
+- **Upload is multipart, not a raw body.** `PUT /trail/upload` with
+  `multipart/form-data`: field `file` = the GPX file, optional `name`
+  (fallback trail name), optional `ignoreDuplicates` = `"true"`. Response
+  `201` with the created trail JSON (`id`, `name`, …); `400` for an empty or
+  unparsable file; `401` unauthenticated.
+- **Duplicate detection** compares distance, elevation gain and loss of the
+  new trail with existing ones (all within 50 m → `400 {"message":
+  "Duplicate trail", "id": …}`). A daily walk on the same loop would be
+  rejected, so the client always sends `ignoreDuplicates=true`; our own
+  dedup is by Health Connect record id.
+- How the trail is filled from the GPX: `name` ← `metadata/name`, else
+  `trk/name`, else the `name` form field; `description` ← **`metadata/desc`**
+  (not `trk/desc`); `date` ← time of the first track point; `lat`/`lon` ←
+  first track point. Elevation may be corrected server-side.
 - Everything else is standard PocketBase CRUD under `/api/v1/<collection>`;
-  not used. A later `PATCH` on the trail to set category/date is optional
-  polish (TODO, not implemented).
+  not used. A later `PATCH` on the trail to set category is optional polish
+  (TODO, not implemented).
+- Heart rate / cadence: Wanderer's GPX parser preserves Garmin
+  `TrackPointExtension` (`gpxtpx:hr`, …) in the stored file but does not
+  display or index it. Not emitted in v1; Health Connect keeps heart rate in
+  separate `HeartRateRecord`s (extra permission) and would need joining by
+  time.
 
 ## GPX output
 
@@ -123,7 +147,7 @@ GPX 1.1, one `<trk>` with one `<trkseg>`.
 | `<metadata><time>` | session start, ISO-8601 UTC |
 | `<trk><name>` | `"<Type label> <start time, local tz, yyyy-MM-dd HH:mm>"` |
 | `<trk><type>` | the type label |
-| `<trk><desc>` | the Health Connect record id, for tracing |
+| `<metadata><desc>` | the Health Connect record id, for tracing (Wanderer maps it to the trail description) |
 | `<trkpt lat lon>` | per location |
 | `<trkpt><ele>` | only when altitude is present |
 | `<trkpt><time>` | ISO-8601 UTC |
