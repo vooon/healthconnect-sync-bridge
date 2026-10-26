@@ -7,38 +7,66 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ru.vehq.hcsync.hc.HealthConnectPermissions
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
-/** Everything the single screen needs to render; the Activity owns the mutable state. */
+/** Everything the single screen renders; the Activity owns the mutable copy. */
 data class SyncUiState(
     val sdkStatusText: String = "checking…",
     val sdkAvailable: Boolean = false,
     val granted: Set<String> = emptySet(),
+    // Settings fields as typed (unsaved until Save / Test / Sync).
+    val serverUrl: String = "",
+    val apiToken: String = "",
+    val intervalText: String = "60",
+    val includeHistory: Boolean = false,
+    val settingsLoaded: Boolean = false,
+    // Status.
+    val lastRunAt: Instant? = null,
+    val lastResult: String? = null,
     val busy: Boolean = false,
-    val probeReport: String = "",
+    val output: String = "",
     val error: String? = null,
 )
 
+class SyncScreenActions(
+    val onServerUrlChange: (String) -> Unit,
+    val onTokenChange: (String) -> Unit,
+    val onIntervalChange: (String) -> Unit,
+    val onHistoryChange: (Boolean) -> Unit,
+    val onSave: () -> Unit,
+    val onRequestPermissions: () -> Unit,
+    val onOpenHealthConnect: () -> Unit,
+    val onTestConnection: () -> Unit,
+    val onSyncNow: () -> Unit,
+    val onProbe: () -> Unit,
+    val onCopyOutput: () -> Unit,
+)
+
+private val statusTimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
 @Composable
-fun SyncScreen(
-    state: SyncUiState,
-    onRequestPermissions: () -> Unit,
-    onOpenHealthConnect: () -> Unit,
-    onProbe: () -> Unit,
-    onCopyProbe: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifier = Modifier) {
+    val canAct = state.sdkAvailable && !state.busy && state.settingsLoaded
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -46,18 +74,55 @@ fun SyncScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Text("Wanderer server", style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(
+            value = state.serverUrl,
+            onValueChange = actions.onServerUrlChange,
+            label = { Text("Server URL") },
+            placeholder = { Text("https://wanderer.example.com") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.apiToken,
+            onValueChange = actions.onTokenChange,
+            label = { Text("API token (Settings → Account → API tokens)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.intervalText,
+            onValueChange = actions.onIntervalChange,
+            label = { Text("Sync interval, minutes (min 15)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Switch(checked = state.includeHistory, onCheckedChange = actions.onHistoryChange)
+            Text("Include workouts older than 30 days (needs the history permission)")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = actions.onSave, enabled = !state.busy && state.settingsLoaded) { Text("Save & schedule") }
+            OutlinedButton(onClick = actions.onTestConnection, enabled = canAct) { Text("Test connection") }
+        }
+
+        HorizontalDivider()
+
         Text("Health Connect", style = MaterialTheme.typography.titleMedium)
         Text("SDK: ${state.sdkStatusText}")
         PermissionRow("Read exercise sessions", HealthConnectPermissions.READ_EXERCISE in state.granted)
         PermissionRow("Read exercise routes (manual toggle)", HealthConnectPermissions.READ_EXERCISE_ROUTES in state.granted)
         PermissionRow("Read in background", HealthConnectPermissions.READ_BACKGROUND in state.granted)
+        if (state.includeHistory) {
+            PermissionRow("Read history (older than 30 days)", HealthConnectPermissions.READ_HISTORY in state.granted)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onRequestPermissions, enabled = state.sdkAvailable && !state.busy) {
-                Text("Grant permissions")
-            }
-            OutlinedButton(onClick = onOpenHealthConnect, enabled = state.sdkAvailable) {
-                Text("Open Health Connect")
-            }
+            Button(onClick = actions.onRequestPermissions, enabled = canAct) { Text("Grant permissions") }
+            OutlinedButton(onClick = actions.onOpenHealthConnect, enabled = state.sdkAvailable) { Text("Open Health Connect") }
         }
         Text(
             "Routes: in Health Connect open App permissions → Wanderer Sync → " +
@@ -67,25 +132,19 @@ fun SyncScreen(
 
         HorizontalDivider()
 
-        Text("Probe", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Lists the last 30 days of sessions with their route status. Run this once on the " +
-                "phone to confirm the watch app writes routes.",
-            style = MaterialTheme.typography.bodySmall,
-        )
+        Text("Sync", style = MaterialTheme.typography.titleMedium)
+        Text("Last run: " + (state.lastRunAt?.let { statusTimeFormat.format(it.atZone(ZoneId.systemDefault())) } ?: "never"))
+        Text("Last result: " + (state.lastResult ?: "–"))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onProbe, enabled = state.sdkAvailable && !state.busy) {
-                Text(if (state.busy) "Working…" else "Probe")
-            }
-            OutlinedButton(onClick = onCopyProbe, enabled = state.probeReport.isNotEmpty()) {
-                Text("Copy")
-            }
+            Button(onClick = actions.onSyncNow, enabled = canAct) { Text(if (state.busy) "Working…" else "Sync now") }
+            OutlinedButton(onClick = actions.onProbe, enabled = canAct) { Text("Probe") }
+            OutlinedButton(onClick = actions.onCopyOutput, enabled = state.output.isNotEmpty()) { Text("Copy") }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (state.probeReport.isNotEmpty()) {
+        if (state.output.isNotEmpty()) {
             SelectionContainer {
                 Text(
-                    state.probeReport,
+                    state.output,
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth(),

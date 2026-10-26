@@ -7,6 +7,7 @@ package ru.vehq.hcsync.hc
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseRouteResult
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -60,18 +61,19 @@ internal fun ExerciseSessionRecord.toWorkout(): Workout = Workout(
     route = exerciseRouteResult.toRouteResult(),
 )
 
-private fun ExerciseRouteResult.toRouteResult(): RouteResult = when (this) {
-    is ExerciseRouteResult.Data -> RouteResult.Data(
-        exerciseRoute.route.map { point ->
-            RoutePoint(
-                time = point.time,
-                latitude = point.latitude,
-                longitude = point.longitude,
-                altitudeMeters = point.altitude?.inMeters,
-                horizontalAccuracyMeters = point.horizontalAccuracy?.inMeters,
-            )
-        },
+/** Also used after a per-record consent dialog returns an [ExerciseRoute] directly. */
+fun ExerciseRoute.toRoutePoints(): List<RoutePoint> = route.map { point ->
+    RoutePoint(
+        time = point.time,
+        latitude = point.latitude,
+        longitude = point.longitude,
+        altitudeMeters = point.altitude?.inMeters,
+        horizontalAccuracyMeters = point.horizontalAccuracy?.inMeters,
     )
+}
+
+private fun ExerciseRouteResult.toRouteResult(): RouteResult = when (this) {
+    is ExerciseRouteResult.Data -> RouteResult.Data(exerciseRoute.toRoutePoints())
     is ExerciseRouteResult.ConsentRequired -> RouteResult.ConsentRequired
     is ExerciseRouteResult.NoData -> RouteResult.NoData
     // ExerciseRouteResult is abstract, not sealed; treat unknown subclasses as "no route".

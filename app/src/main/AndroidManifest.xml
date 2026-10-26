@@ -24,8 +24,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WandererSync">
 
+        <!-- configChanges: keep the Activity (and an in-flight sync) alive across rotation; Compose relayouts itself. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
