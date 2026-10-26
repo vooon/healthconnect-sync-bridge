@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launcher background: green with a faint, slightly rotated street grid and a river, faded out
+<!-- Launcher background: green with a faint vector street map (roads, side streets, river, park), faded out
      towards the edges by a radial gradient so the foreground trail stays readable. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -10,25 +10,36 @@
     <path
         android:fillColor="@color/ic_launcher_background"
         android:pathData="M0,0h108v108h-108z" />
-    <!-- minor streets -->
+    <!-- park -->
     <path
-        android:strokeColor="#33FFFFFF"
-        android:strokeWidth="1.5"
-        android:fillColor="#00000000"
-        android:pathData="M-10,30 L118,16 M-10,58 L118,44 M-10,86 L118,72 M30,-10 L16,118 M58,-10 L44,118 M86,-10 L72,118" />
-    <!-- main road -->
-    <path
-        android:strokeColor="#40FFFFFF"
-        android:strokeWidth="3"
-        android:fillColor="#00000000"
-        android:pathData="M-10,76 L118,34" />
+        android:fillColor="#1AFFFFFF"
+        android:pathData="M62,72 L82,64 L90,82 L72,92 Z" />
     <!-- river -->
     <path
-        android:strokeColor="#2EFFFFFF"
-        android:strokeWidth="6"
+        android:strokeColor="#33FFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M-5,95 C18,84 28,104 48,90 C66,78 84,100 115,84" />
+        android:pathData="M-5,104 C14,96 22,112 40,100 C56,89 70,106 118,92" />
+    <!-- side streets -->
+    <path
+        android:strokeColor="#40FFFFFF"
+        android:strokeWidth="1.3"
+        android:fillColor="#00000000"
+        android:pathData="M18,-10 L24,42 M44,14 L40,70 M72,8 L68,50 M84,44 L92,118 M-10,86 L30,78 M50,76 L72,72 M8,56 L24,60 M96,30 L118,42 M30,96 L58,88 M60,-10 L58,20" />
+    <!-- secondary road -->
+    <path
+        android:strokeColor="#4DFFFFFF"
+        android:strokeWidth="2.4"
+        android:fillColor="#00000000"
+        android:pathData="M-10,28 C14,32 26,58 50,60 C74,62 86,88 118,94" />
+    <!-- primary road -->
+    <path
+        android:strokeColor="#66FFFFFF"
+        android:strokeWidth="3.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M-10,72 C18,70 30,42 58,40 C82,38 96,20 118,12" />
     <!-- fade-out: transparent in the middle, solid green at the rim -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
