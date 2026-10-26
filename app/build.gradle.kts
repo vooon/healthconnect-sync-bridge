@@ -9,12 +9,17 @@ plugins {
 val releaseStoreFile = System.getenv("WS_RELEASE_STORE_FILE")
 val releaseStorePassword = System.getenv("WS_RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = System.getenv("WS_RELEASE_KEY_ALIAS")
-val releaseKeyPassword = System.getenv("WS_RELEASE_KEY_PASSWORD")
+// A PKCS12 keystore (keytool's default) has no separate key password; fall back to the store's.
+val releaseKeyPassword = System.getenv("WS_RELEASE_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: releaseStorePassword
 val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
     .all { !it.isNullOrBlank() }
 
 // Tag `v1.2.3` → versionName "1.2.3", versionCode 10203 (so each release outranks the last).
 val taggedVersion = System.getenv("WS_VERSION_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() }
+if (taggedVersion != null && !hasReleaseSigning) {
+    // A tagged build must be installable; fail here instead of producing app-release-unsigned.apk.
+    error("Release signing is not configured: set WS_RELEASE_STORE_FILE, WS_RELEASE_STORE_PASSWORD and WS_RELEASE_KEY_ALIAS (see README \"Releases\")")
+}
 val taggedVersionCode = taggedVersion
     ?.split(".")
     ?.mapNotNull { it.takeWhile(Char::isDigit).toIntOrNull() }

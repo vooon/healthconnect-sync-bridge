@@ -136,9 +136,11 @@ keytool -genkeypair -v -keystore release.jks -alias wanderer-sync \
 base64 -w0 release.jks   # → secret ANDROID_KEYSTORE_BASE64
 ```
 
-Add four repository secrets: `ANDROID_KEYSTORE_BASE64`,
-`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`wanderer-sync`),
-`ANDROID_KEY_PASSWORD`. Keep `release.jks` somewhere safe and never commit
+Add three repository secrets: `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`wanderer-sync`). A fourth,
+`ANDROID_KEY_PASSWORD`, is only needed if the key has its own password (a
+PKCS12 keystore, keytool's default, has none; the store password is used).
+A tagged build without these fails at once instead of producing an unsigned APK. Keep `release.jks` somewhere safe and never commit
 it; losing it means users must uninstall before the next update.
 
 Debug builds use the package id `ru.vehq.hcsync.debug`, so a development
