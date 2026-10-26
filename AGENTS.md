@@ -51,6 +51,24 @@ strings. Never log the password or cookie value at any log level.
 - Non-obvious Android boilerplate (manifest entries, permission contracts,
   activity-aliases, WorkManager wiring) gets a one-line comment saying *why*
   it exists, and a pointer to the official sample it was copied from.
+
+## Attribution of borrowed code (AGPL-3 obligation)
+Code adapted from another project keeps its attribution, always, even for a
+few lines:
+- The file starts with a header naming the origin project, the original
+  file path, the commit hash, the copyright holder and the licence, and
+  stating that it was modified here. Template:
+  ```kotlin
+  // Derived from OpenVitals (https://github.com/OpenVitals-MTU/android-app)
+  // app/src/main/kotlin/tech/mmarca/openvitals/healthconnect/HealthConnectMappers.kt
+  // at commit d305e83, Copyright the OpenVitals authors, AGPL-3.0-or-later.
+  // Modified for Wanderer Sync.
+  ```
+- `THIRD_PARTY_NOTICES.md` lists every such file (origin path → local path)
+  under the origin project's entry. Add the row in the same commit.
+- Never strip an existing copyright or licence notice from copied text.
+- Only borrow from licences compatible with AGPL-3.0 (AGPL/GPL-3, Apache-2,
+  MIT, BSD). Google `health-samples` is Apache-2: keep its notice too.
 - Network calls and Health Connect reads only on `Dispatchers.IO`.
 - `./gradlew assembleDebug` and `./gradlew testDebugUnitTest` must be green
   before every commit.

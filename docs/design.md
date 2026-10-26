@@ -196,4 +196,5 @@ watch and exports GPX. Borrow from it rather than re-deriving:
 - Its `onboarding_routes_*` strings are the user-facing wording for the
   three-tap route permission.
 
-Anything copied keeps a comment naming the source file.
+Anything copied keeps the attribution header and a row in
+`THIRD_PARTY_NOTICES.md`, as required by `AGENTS.md`.
