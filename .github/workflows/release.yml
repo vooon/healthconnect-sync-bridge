@@ -39,11 +39,16 @@ jobs:
           WS_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           WS_VERSION_NAME: ${{ github.ref_name }}
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk "wanderer-sync-${GITHUB_REF_NAME}.apk"
+      - name: Collect release files
+        # The R8 mapping file turns obfuscated stack traces back into source names; keep it per release.
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "wanderer-sync-${GITHUB_REF_NAME}.apk"
+          gzip -c app/build/outputs/mapping/release/mapping.txt > "wanderer-sync-${GITHUB_REF_NAME}-mapping.txt.gz"
 
       - name: Create GitHub release with APK
         uses: softprops/action-gh-release@v3
         with:
-          files: wanderer-sync-${{ github.ref_name }}.apk
+          files: |
+            wanderer-sync-${{ github.ref_name }}.apk
+            wanderer-sync-${{ github.ref_name }}-mapping.txt.gz
           generate_release_notes: true

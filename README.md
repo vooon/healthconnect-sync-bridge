@@ -143,6 +143,10 @@ PKCS12 keystore, keytool's default, has none; the store password is used).
 A tagged build without these fails at once instead of producing an unsigned APK. Keep `release.jks` somewhere safe and never commit
 it; losing it means users must uninstall before the next update.
 
+Release builds are shrunk with R8 (about 3 MiB instead of 30); the matching
+`…-mapping.txt.gz` on the release page decodes obfuscated stack traces
+(`retrace` from the Android build-tools). Debug builds are not shrunk.
+
 Debug builds use the package id `ru.vehq.hcsync.debug`, so a development
 install and the release can live on the phone side by side (each with its own
 Health Connect permissions and settings). Dependabot opens weekly PRs for

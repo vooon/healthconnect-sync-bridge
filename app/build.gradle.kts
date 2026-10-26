@@ -57,8 +57,10 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // No code shrinking: the APK is small enough and R8 config is one more thing to maintain.
-            isMinifyEnabled = false
+            // R8: strip unused code and resources (an unshrunk Compose app is ~30 MiB of dex).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
