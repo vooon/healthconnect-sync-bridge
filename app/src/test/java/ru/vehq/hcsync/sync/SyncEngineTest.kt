@@ -74,8 +74,8 @@ class SyncEngineTest {
         }
     }
 
-    private fun engine(source: FakeSource, client: FakeClient, state: MemoryState) =
-        SyncEngine(source, client, state, clock = { now }, zone = zone)
+    private fun engine(source: FakeSource, client: FakeClient, state: MemoryState, clock: () -> Instant = { now }) =
+        SyncEngine(source, client, state, clock = clock, zone = zone)
 
     @Test
     fun uploadsNewRecordsOldestFirstAndPersistsEach() = runTest {
@@ -217,6 +217,29 @@ class SyncEngineTest {
         engine(source, client, MemoryState()).run(Duration.ofDays(30), includeSensors = false)
         assertTrue(source.sensorReads.isEmpty())
         assertFalse(client.uploads.single().second.contains("gpxtpx:hr>"))
+    }
+
+    @Test
+    fun timeBudgetDefersRemainingRecordsAndFlagsMoreWork() = runTest {
+        val source = FakeSource(
+            listOf(
+                workout("a", 3, RouteResult.Data(pts(2))),
+                workout("b", 2, RouteResult.Data(pts(2))),
+                workout("c", 1, RouteResult.Data(pts(2))),
+            ),
+        )
+        val client = FakeClient()
+        val state = MemoryState()
+        // The clock jumps 5 minutes per read: start=0, first check=5 (inside a 6-minute budget), second=10 (past it).
+        var ticks = 0L
+        val clock = { now.plusSeconds(300 * ticks++) }
+        val r = engine(source, client, state, clock).run(Duration.ofDays(30), budget = Duration.ofMinutes(6))
+
+        assertEquals(1, r.uploaded)
+        assertTrue(r.moreWork)
+        assertNull(r.failure)
+        assertEquals(setOf("a"), state.data.doneIds)
+        assertEquals("uploaded 1, more pending", r.summary())
     }
 
     @Test
