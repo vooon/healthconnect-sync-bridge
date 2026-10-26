@@ -33,3 +33,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local planning notes (not published)
+/healthconnect-sync-bridge-plan.md
