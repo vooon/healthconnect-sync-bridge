@@ -75,6 +75,8 @@ press Run.)
    ids. **Save & schedule** (also done by Test/Sync) starts the background
    job at the chosen interval.
 
+Background runs happen only on Wi-Fi by default; turn "only on Wi-Fi" off to
+allow mobile data, and "only while charging" on to wait for the charger.
 "Include workouts older than 30 days" asks for Health Connect's history
 permission on the next **Grant permissions** and widens the first sync.
 
@@ -88,8 +90,10 @@ adb logcat -s SyncWorker WandererSync
 also shows the last run time and result (`uploaded N, no route N, consent
 needed N, failed: …`).
 
-Background runs need the "Read in background" permission (shown on the
-screen) and a network connection. WorkManager decides the exact minute;
+The Sync section keeps running totals: trails uploaded, sessions that had no
+route, and how many sessions the last run saw. Background runs need the
+"Read in background" permission (shown on the screen) and a network that
+matches the toggles. WorkManager decides the exact minute;
 expect drift of a few minutes, and up to the interval after a reboot.
 
 ## Known limitations

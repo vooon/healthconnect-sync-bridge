@@ -29,6 +29,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+/** A short message shown next to the buttons that produced it. */
+data class Notice(val text: String, val isError: Boolean = false)
+
 /** Everything the single screen renders; the Activity owns the mutable copy. */
 data class SyncUiState(
     val sdkStatusText: String = "checking…",
@@ -39,13 +42,19 @@ data class SyncUiState(
     val apiToken: String = "",
     val intervalText: String = "60",
     val includeHistory: Boolean = false,
+    val wifiOnly: Boolean = true,
+    val chargingOnly: Boolean = false,
     val settingsLoaded: Boolean = false,
     // Status.
+    val serverNotice: Notice? = null,
+    val syncNotice: Notice? = null,
     val lastRunAt: Instant? = null,
     val lastResult: String? = null,
+    val uploadedTotal: Int = 0,
+    val noRouteTotal: Int = 0,
+    val lastSeen: Int = 0,
     val busy: Boolean = false,
     val output: String = "",
-    val error: String? = null,
 )
 
 class SyncScreenActions(
@@ -53,6 +62,8 @@ class SyncScreenActions(
     val onTokenChange: (String) -> Unit,
     val onIntervalChange: (String) -> Unit,
     val onHistoryChange: (Boolean) -> Unit,
+    val onWifiOnlyChange: (Boolean) -> Unit,
+    val onChargingOnlyChange: (Boolean) -> Unit,
     val onSave: () -> Unit,
     val onRequestPermissions: () -> Unit,
     val onOpenHealthConnect: () -> Unit,
@@ -101,14 +112,14 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Switch(checked = state.includeHistory, onCheckedChange = actions.onHistoryChange)
-            Text("Include workouts older than 30 days (needs the history permission)")
-        }
+        ToggleRow("Background sync only on Wi-Fi", state.wifiOnly, actions.onWifiOnlyChange)
+        ToggleRow("Background sync only while charging", state.chargingOnly, actions.onChargingOnlyChange)
+        ToggleRow("Include workouts older than 30 days (needs the history permission)", state.includeHistory, actions.onHistoryChange)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSave, enabled = !state.busy && state.settingsLoaded) { Text("Save & schedule") }
             OutlinedButton(onClick = actions.onTestConnection, enabled = canAct) { Text("Test connection") }
         }
+        NoticeText(state.serverNotice)
 
         HorizontalDivider()
 
@@ -133,14 +144,16 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         HorizontalDivider()
 
         Text("Sync", style = MaterialTheme.typography.titleMedium)
-        Text("Last run: " + (state.lastRunAt?.let { statusTimeFormat.format(it.atZone(ZoneId.systemDefault())) } ?: "never"))
+        Text("Uploaded ${state.uploadedTotal} trail(s) in total · ${state.noRouteTotal} session(s) had no route")
+        Text("Last run: " + (state.lastRunAt?.let { statusTimeFormat.format(it.atZone(ZoneId.systemDefault())) } ?: "never") +
+            (state.lastRunAt?.let { " · ${state.lastSeen} session(s) in window" } ?: ""))
         Text("Last result: " + (state.lastResult ?: "–"))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSyncNow, enabled = canAct) { Text(if (state.busy) "Working…" else "Sync now") }
             OutlinedButton(onClick = actions.onProbe, enabled = canAct) { Text("Probe") }
             OutlinedButton(onClick = actions.onCopyOutput, enabled = state.output.isNotEmpty()) { Text("Copy") }
         }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        NoticeText(state.syncNotice)
         if (state.output.isNotEmpty()) {
             SelectionContainer {
                 Text(
@@ -151,6 +164,21 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun NoticeText(notice: Notice?) {
+    if (notice != null) {
+        Text(notice.text, color = if (notice.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Switch(checked = checked, onCheckedChange = onChange)
+        Text(label)
     }
 }
 

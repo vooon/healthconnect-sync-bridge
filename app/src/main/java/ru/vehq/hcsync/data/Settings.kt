@@ -17,6 +17,10 @@ data class SettingsData(
     val intervalMinutes: Int = DEFAULT_INTERVAL_MINUTES,
     /** Ask for READ_HEALTH_DATA_HISTORY and sync everything, not only the last 30 days. */
     val includeHistory: Boolean = false,
+    /** Background runs only on an unmetered network (Wi-Fi), never on mobile data. */
+    val wifiOnly: Boolean = true,
+    /** Background runs only while charging. */
+    val chargingOnly: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_INTERVAL_MINUTES = 60
@@ -38,6 +42,8 @@ class Settings(context: Context) {
             serverUrl = p[KEY_SERVER_URL] ?: "",
             intervalMinutes = p[KEY_INTERVAL] ?: SettingsData.DEFAULT_INTERVAL_MINUTES,
             includeHistory = p[KEY_HISTORY] ?: false,
+            wifiOnly = p[KEY_WIFI_ONLY] ?: true,
+            chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
         )
     }
 
@@ -50,11 +56,15 @@ class Settings(context: Context) {
                 serverUrl = p[KEY_SERVER_URL] ?: "",
                 intervalMinutes = p[KEY_INTERVAL] ?: SettingsData.DEFAULT_INTERVAL_MINUTES,
                 includeHistory = p[KEY_HISTORY] ?: false,
+                wifiOnly = p[KEY_WIFI_ONLY] ?: true,
+                chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
             )
             result = block(current)
             p[KEY_SERVER_URL] = result.serverUrl
             p[KEY_INTERVAL] = result.intervalMinutes
             p[KEY_HISTORY] = result.includeHistory
+            p[KEY_WIFI_ONLY] = result.wifiOnly
+            p[KEY_CHARGING_ONLY] = result.chargingOnly
         }
         return result
     }
@@ -63,5 +73,7 @@ class Settings(context: Context) {
         val KEY_SERVER_URL = stringPreferencesKey("server_url")
         val KEY_INTERVAL = intPreferencesKey("interval_minutes")
         val KEY_HISTORY = booleanPreferencesKey("include_history")
+        val KEY_WIFI_ONLY = booleanPreferencesKey("wifi_only")
+        val KEY_CHARGING_ONLY = booleanPreferencesKey("charging_only")
     }
 }

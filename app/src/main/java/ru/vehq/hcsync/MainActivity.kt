@@ -39,6 +39,7 @@ import ru.vehq.hcsync.model.Workout
 import ru.vehq.hcsync.sync.SyncEngine
 import ru.vehq.hcsync.sync.SyncScheduler
 import ru.vehq.hcsync.sync.SyncWorker
+import ru.vehq.hcsync.ui.Notice
 import ru.vehq.hcsync.ui.PrivacyRationaleScreen
 import ru.vehq.hcsync.ui.SyncScreen
 import ru.vehq.hcsync.ui.SyncScreenActions
@@ -87,12 +88,14 @@ class MainActivity : ComponentActivity() {
             onTokenChange = { state = state.copy(apiToken = it) },
             onIntervalChange = { state = state.copy(intervalText = it.filter(Char::isDigit)) },
             onHistoryChange = { state = state.copy(includeHistory = it) },
-            onSave = { lifecycleScope.launch { busy { saveSettings(); "Saved. Background sync every ${intervalMinutes()} min." } } },
+            onWifiOnlyChange = { state = state.copy(wifiOnly = it) },
+            onChargingOnlyChange = { state = state.copy(chargingOnly = it) },
+            onSave = { lifecycleScope.launch { busy(Target.SERVER) { saveSettings().let { s -> "Saved. Background sync every ${s.intervalMinutes} min" + (if (s.wifiOnly) " on Wi-Fi" else "") + (if (s.chargingOnly) " while charging" else "") + "." } } } },
             onRequestPermissions = { permissionLauncher.launch(permissions.requestable(includeHistory = state.includeHistory)) },
             onOpenHealthConnect = ::openHealthConnect,
-            onTestConnection = { lifecycleScope.launch { busy { testConnection() } } },
-            onSyncNow = { lifecycleScope.launch { busy { syncNow() } } },
-            onProbe = { lifecycleScope.launch { busy { probe() } } },
+            onTestConnection = { lifecycleScope.launch { busy(Target.SERVER) { testConnection() } } },
+            onSyncNow = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow() } } },
+            onProbe = { lifecycleScope.launch { busy(Target.OUTPUT) { probe() } } },
             onCopyOutput = ::copyOutput,
         )
 
@@ -111,7 +114,15 @@ class MainActivity : ComponentActivity() {
         if (!rationaleOnly) {
             loadSettings()
             lifecycleScope.launch {
-                syncState.data.collect { state = state.copy(lastRunAt = it.lastRunAt, lastResult = it.lastResult) }
+                syncState.data.collect {
+                    state = state.copy(
+                        lastRunAt = it.lastRunAt,
+                        lastResult = it.lastResult,
+                        uploadedTotal = it.uploadedTotal,
+                        noRouteTotal = it.noRouteTotal,
+                        lastSeen = it.lastSeen,
+                    )
+                }
             }
         }
     }
@@ -132,6 +143,8 @@ class MainActivity : ComponentActivity() {
                 apiToken = token,
                 intervalText = s.intervalMinutes.toString(),
                 includeHistory = s.includeHistory,
+                wifiOnly = s.wifiOnly,
+                chargingOnly = s.chargingOnly,
                 settingsLoaded = true,
             )
         }
@@ -153,23 +166,35 @@ class MainActivity : ComponentActivity() {
     private fun refreshPermissions() {
         lifecycleScope.launch {
             runCatching { permissions.granted() }
-                .onSuccess { state = state.copy(granted = it, error = null) }
-                .onFailure { state = state.copy(error = "Reading permissions failed: ${it.message}") }
+                .onSuccess { state = state.copy(granted = it) }
+                .onFailure { state = state.copy(syncNotice = Notice("Reading permissions failed: ${it.message}", isError = true)) }
         }
     }
 
     // ---- actions -------------------------------------------------------------------------------
 
-    /** Runs [block] with the busy flag set; its return value becomes the output area text. */
-    private suspend fun busy(block: suspend () -> String) {
-        state = state.copy(busy = true, error = null)
-        try {
-            state = state.copy(output = block())
+    /** Where an action reports: a one-line notice under the server buttons, or the sync output area. */
+    private enum class Target { SERVER, OUTPUT }
+
+    /** Runs [block] with the busy flag set; its return value (or error) is shown at [target]. */
+    private suspend fun busy(target: Target, block: suspend () -> String) {
+        state = when (target) {
+            Target.SERVER -> state.copy(busy = true, serverNotice = Notice("Working…"))
+            Target.OUTPUT -> state.copy(busy = true, syncNotice = Notice("Working…"))
+        }
+        val notice = try {
+            val text = block()
+            when (target) {
+                Target.SERVER -> Notice(text)
+                Target.OUTPUT -> { state = state.copy(output = text); null }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "action failed", e)
-            state = state.copy(error = e.message ?: e.javaClass.simpleName)
-        } finally {
-            state = state.copy(busy = false)
+            Notice(e.message ?: e.javaClass.simpleName, isError = true)
+        }
+        state = when (target) {
+            Target.SERVER -> state.copy(busy = false, serverNotice = notice)
+            Target.OUTPUT -> state.copy(busy = false, syncNotice = notice)
         }
     }
 
@@ -179,11 +204,17 @@ class MainActivity : ComponentActivity() {
     private suspend fun saveSettings(): SettingsData {
         val interval = intervalMinutes()
         val saved = settings.update {
-            it.copy(serverUrl = state.serverUrl.trim(), intervalMinutes = interval, includeHistory = state.includeHistory)
+            it.copy(
+                serverUrl = state.serverUrl.trim(),
+                intervalMinutes = interval,
+                includeHistory = state.includeHistory,
+                wifiOnly = state.wifiOnly,
+                chargingOnly = state.chargingOnly,
+            )
         }
         withContext(Dispatchers.IO) { secrets.apiToken = state.apiToken }
         state = state.copy(intervalText = interval.toString())
-        SyncScheduler.schedule(this, interval)
+        SyncScheduler.schedule(this, saved)
         return saved
     }
 
@@ -231,7 +262,7 @@ class MainActivity : ComponentActivity() {
     private fun openHealthConnect() {
         // Deep link into Health Connect's settings; the route toggle lives under Additional access.
         runCatching { startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) }
-            .onFailure { state = state.copy(error = "Cannot open Health Connect: ${it.message}") }
+            .onFailure { state = state.copy(syncNotice = Notice("Cannot open Health Connect: ${it.message}", isError = true)) }
     }
 
     private fun copyOutput() {

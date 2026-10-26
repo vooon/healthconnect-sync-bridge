@@ -14,11 +14,15 @@ import java.time.Duration
 object SyncScheduler {
     const val WORK_NAME = "wanderer-sync"
 
-    fun schedule(context: Context, intervalMinutes: Int) {
-        val minutes = intervalMinutes.coerceAtLeast(SettingsData.MIN_INTERVAL_MINUTES).toLong()
+    fun schedule(context: Context, settings: SettingsData) {
+        val minutes = settings.intervalMinutes.coerceAtLeast(SettingsData.MIN_INTERVAL_MINUTES).toLong()
+        val constraints = Constraints.Builder()
+            // Uploads need a network; UNMETERED = Wi-Fi (or a hotspot the OS believes is unmetered).
+            .setRequiredNetworkType(if (settings.wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+            .setRequiresCharging(settings.chargingOnly)
+            .build()
         val request = PeriodicWorkRequestBuilder<SyncWorker>(Duration.ofMinutes(minutes))
-            // Uploads need a network; Health Connect reads do not, but there is nothing to do without both.
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofMinutes(10))
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(

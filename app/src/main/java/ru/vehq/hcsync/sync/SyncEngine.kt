@@ -99,7 +99,7 @@ class SyncEngine(
             }
         }
         result = result.copy(uploadedTrailIds = trailIds)
-        state.recordRun(now, result.summary())
+        state.recordRun(now, result.summary(), seen = workouts.size)
         return result
     }
 

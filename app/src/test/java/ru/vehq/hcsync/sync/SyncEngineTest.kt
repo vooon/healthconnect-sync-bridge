@@ -62,8 +62,8 @@ class SyncEngineTest {
                 newestUploadedEnd = listOfNotNull(data.newestUploadedEnd, uploadedEnd).maxOrNull(),
             )
         }
-        override suspend fun recordRun(at: Instant, summary: String) {
-            data = data.copy(lastRunAt = at, lastResult = summary)
+        override suspend fun recordRun(at: Instant, summary: String, seen: Int) {
+            data = data.copy(lastRunAt = at, lastResult = summary, lastSeen = seen)
         }
     }
 
@@ -87,6 +87,7 @@ class SyncEngineTest {
         assertTrue(client.uploads[0].second.contains("<trkpt"))
         assertEquals(now, state.data.lastRunAt)
         assertEquals("uploaded 2", state.data.lastResult)
+        assertEquals(2, state.data.lastSeen)
         assertEquals(now.minus(Duration.ofDays(30)), source.lastFrom)
     }
 

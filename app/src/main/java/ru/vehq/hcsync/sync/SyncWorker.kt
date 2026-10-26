@@ -38,7 +38,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val granted = runCatching { permissions.granted() }.getOrElse { return bail("cannot read Health Connect permissions: ${it.message}") }
         if (HealthConnectPermissions.READ_EXERCISE !in granted) return bail("READ_EXERCISE not granted")
         if (HealthConnectPermissions.READ_BACKGROUND !in granted) {
-            state.recordRun(Instant.now(), "failed: background read permission not granted")
+            state.recordRun(Instant.now(), "failed: background read permission not granted", seen = 0)
             return bail("READ_HEALTH_DATA_IN_BACKGROUND not granted")
         }
 
@@ -55,7 +55,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         } catch (e: Exception) {
             // Reading Health Connect itself failed (e.g. SecurityException); engine never persisted a run.
             Log.w(TAG, "sync failed before upload", e)
-            state.recordRun(Instant.now(), "failed: ${e.message ?: e.javaClass.simpleName}")
+            state.recordRun(Instant.now(), "failed: ${e.message ?: e.javaClass.simpleName}", seen = 0)
             return Result.success()
         }
         Log.i(TAG, "run finished: ${result.summary()}")

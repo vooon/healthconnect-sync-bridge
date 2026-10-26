@@ -39,7 +39,7 @@ app/src/main/java/ru/vehq/hcsync/
   sync/SyncEngine.kt        — read → filter done → gpx → upload → persist (pure Kotlin)
   sync/SyncWorker.kt        — CoroutineWorker wiring real deps into SyncEngine
   data/Settings.kt          — DataStore: server url, interval, history opt-in
-  data/SyncState.kt         — DataStore: done ids, newest uploaded end, last run/result
+  data/SyncState.kt         — DataStore: done ids, totals, newest uploaded end, last run/result
   data/Secrets.kt           — EncryptedSharedPreferences: Wanderer API token
   sync/SyncScheduler.kt     — enqueues the unique PeriodicWorkRequest
 ```
@@ -190,20 +190,25 @@ flowchart TD
 
 ## Scheduling
 
-`SyncWorker` is a `PeriodicWorkRequest` with `NetworkType.CONNECTED`.
-Default interval 60 min, user-settable; WorkManager's minimum is 15 min. It
-is (re-)enqueued with `ExistingPeriodicWorkPolicy.UPDATE` whenever settings
-change.
+`SyncWorker` is a `PeriodicWorkRequest`. Constraints come from settings:
+network `UNMETERED` (Wi-Fi) by default or `CONNECTED` when "only on Wi-Fi"
+is off, plus `requiresCharging` when "only while charging" is on. Default
+interval 60 min, user-settable; WorkManager's minimum is 15 min. It is
+(re-)enqueued with `ExistingPeriodicWorkPolicy.UPDATE` whenever settings
+are saved.
 
 ## Screen
 
-Fields: server URL, API token (password-masked), sync interval, "include
-workouts older than 30 days" toggle. Buttons: Save & schedule, Test
+Fields: server URL, API token (password-masked), sync interval, toggles for
+Wi-Fi only, charging only and "include workouts older than 30 days". Buttons: Save & schedule, Test
 connection (`GET /api-token`), Grant permissions, Open Health Connect, Sync
 now (foreground, resolves `ConsentRequired` through the route contract),
 Probe (lists the last 30 days of sessions with type, start, route status and
 point count), Copy. Status: Health Connect SDK status, per-permission ✔/✘,
-last run, last result, and a monospace output area for probe / sync text.
+running totals (trails uploaded, sessions without route), last run with
+the number of sessions seen in the window, last result, and a monospace
+output area for probe / sync text. Save and Test connection report in a
+one-line notice under their own buttons; Sync now and Probe under theirs.
 
 ## Security / logging
 

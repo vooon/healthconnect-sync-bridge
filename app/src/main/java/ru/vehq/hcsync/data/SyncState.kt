@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -20,6 +21,11 @@ data class SyncStateData(
     val newestUploadedEnd: Instant? = null,
     val lastRunAt: Instant? = null,
     val lastResult: String? = null,
+    /** Running totals since install. */
+    val uploadedTotal: Int = 0,
+    val noRouteTotal: Int = 0,
+    /** Sessions Health Connect returned for the window at the last run (uploaded or not). */
+    val lastSeen: Int = 0,
 )
 
 /** Persistence the sync engine needs. An interface so the engine is testable with an in-memory map. */
@@ -29,7 +35,7 @@ interface SyncStateStore {
     /** Called once per record, immediately after its upload (or its permanent skip) succeeded. */
     suspend fun markDone(id: String, uploadedEnd: Instant?)
 
-    suspend fun recordRun(at: Instant, summary: String)
+    suspend fun recordRun(at: Instant, summary: String, seen: Int)
 }
 
 private val Context.syncStateStore: DataStore<Preferences> by preferencesDataStore(name = "sync_state")
@@ -44,6 +50,8 @@ class DataStoreSyncState(context: Context) : SyncStateStore {
     override suspend fun markDone(id: String, uploadedEnd: Instant?) {
         store.edit { p ->
             p[KEY_DONE_IDS] = (p[KEY_DONE_IDS] ?: emptySet()) + id
+            if (uploadedEnd != null) p[KEY_UPLOADED_TOTAL] = (p[KEY_UPLOADED_TOTAL] ?: 0) + 1
+            else p[KEY_NO_ROUTE_TOTAL] = (p[KEY_NO_ROUTE_TOTAL] ?: 0) + 1
             if (uploadedEnd != null) {
                 val prev = p[KEY_NEWEST_END]
                 if (prev == null || uploadedEnd.toEpochMilli() > prev) p[KEY_NEWEST_END] = uploadedEnd.toEpochMilli()
@@ -51,10 +59,11 @@ class DataStoreSyncState(context: Context) : SyncStateStore {
         }
     }
 
-    override suspend fun recordRun(at: Instant, summary: String) {
+    override suspend fun recordRun(at: Instant, summary: String, seen: Int) {
         store.edit { p ->
             p[KEY_LAST_RUN] = at.toEpochMilli()
             p[KEY_LAST_RESULT] = summary
+            p[KEY_LAST_SEEN] = seen
         }
     }
 
@@ -63,6 +72,9 @@ class DataStoreSyncState(context: Context) : SyncStateStore {
         newestUploadedEnd = this[KEY_NEWEST_END]?.let(Instant::ofEpochMilli),
         lastRunAt = this[KEY_LAST_RUN]?.let(Instant::ofEpochMilli),
         lastResult = this[KEY_LAST_RESULT],
+        uploadedTotal = this[KEY_UPLOADED_TOTAL] ?: 0,
+        noRouteTotal = this[KEY_NO_ROUTE_TOTAL] ?: 0,
+        lastSeen = this[KEY_LAST_SEEN] ?: 0,
     )
 
     private companion object {
@@ -70,5 +82,8 @@ class DataStoreSyncState(context: Context) : SyncStateStore {
         val KEY_NEWEST_END = longPreferencesKey("newest_uploaded_end")
         val KEY_LAST_RUN = longPreferencesKey("last_run")
         val KEY_LAST_RESULT = stringPreferencesKey("last_result")
+        val KEY_UPLOADED_TOTAL = intPreferencesKey("uploaded_total")
+        val KEY_NO_ROUTE_TOTAL = intPreferencesKey("no_route_total")
+        val KEY_LAST_SEEN = intPreferencesKey("last_seen")
     }
 }
