@@ -29,3 +29,12 @@ Files in this repository derived from OpenVitals (origin path → local path):
 | health-samples file | Local file |
 |---|---|
 | `health-connect/HealthConnectSample/app/src/main/AndroidManifest.xml` (Health Connect intent-filters and `<queries>`) | `app/src/main/AndroidManifest.xml` |
+
+## Garmin TrackPointExtension schema
+
+- File: `app/src/test/resources/TrackPointExtensionv1.xsd`, test resource only
+  (not shipped in the APK)
+- Source: https://www8.garmin.com/xmlschemas/TrackPointExtensionv1.xsd
+- Copyright: Garmin Ltd. or its subsidiaries; redistributed unmodified for
+  schema validation in tests. The GPX 1.1 schema (`gpx.xsd`) is likewise
+  TopoGrafix's, from https://www.topografix.com/GPX/1/1/gpx.xsd.

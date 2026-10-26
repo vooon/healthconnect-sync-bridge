@@ -63,6 +63,8 @@ press Run.)
 ## First run
 
 1. **Grant permissions** → accept in the Health Connect dialog.
+   With "heart rate and cadence" on (default), the dialog also asks for heart
+   rate and steps.
 2. **Open Health Connect** → App permissions → Wanderer Sync →
    *Additional access* → **Exercise routes → Always allow**. No app can ask
    for this one; the screen shows ✔ next to "Read exercise routes" once it is
@@ -100,8 +102,11 @@ expect drift of a few minutes, and up to the interval after a reboot.
 
 ## Known limitations
 
-- GPX carries position, elevation and time only. Heart rate and cadence are
-  not exported (Wanderer would not show them anyway).
+- Heart rate and cadence go into the GPX as Garmin `TrackPointExtension`
+  fields (toggle on the screen, needs the heart-rate and steps permissions).
+  Wanderer keeps them in the stored file but does not display them; tools
+  reading the downloaded GPX (Strava, Garmin, GPX viewers) do. Speed, power
+  and SpO₂ are not exported.
 - One `<trk>`/`<trkseg>` per workout: pauses are not split into segments.
 - Wanderer's own duplicate check is bypassed (`ignoreDuplicates`), because a
   daily walk on the same loop would otherwise be rejected; deduplication is

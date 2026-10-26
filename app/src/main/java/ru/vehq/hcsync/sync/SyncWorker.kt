@@ -51,7 +51,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val lookback = lookbackFor(settings.includeHistory, HealthConnectPermissions.READ_HISTORY in granted)
 
         val result = try {
-            engine.run(lookback)
+            engine.run(lookback, includeSensors = settings.includeSensors)
         } catch (e: Exception) {
             // Reading Health Connect itself failed (e.g. SecurityException); engine never persisted a run.
             Log.w(TAG, "sync failed before upload", e)

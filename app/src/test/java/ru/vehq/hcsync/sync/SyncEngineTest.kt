@@ -11,6 +11,8 @@ import ru.vehq.hcsync.data.SyncStateStore
 import ru.vehq.hcsync.hc.HealthConnectSource
 import ru.vehq.hcsync.model.RoutePoint
 import ru.vehq.hcsync.model.RouteResult
+import ru.vehq.hcsync.model.SensorSample
+import ru.vehq.hcsync.model.SensorSamples
 import ru.vehq.hcsync.model.Workout
 import ru.vehq.hcsync.wanderer.WandererClient
 import ru.vehq.hcsync.wanderer.WandererHttpException
@@ -33,11 +35,16 @@ class SyncEngineTest {
         startZoneOffset = ZoneOffset.UTC, sourcePackage = "com.example.watch", route = route,
     )
 
-    private class FakeSource(val workouts: List<Workout>) : HealthConnectSource {
+    private class FakeSource(val workouts: List<Workout>, val sensors: SensorSamples = SensorSamples()) : HealthConnectSource {
         var lastFrom: Instant? = null
+        val sensorReads = ArrayList<Pair<Instant, Instant>>()
         override suspend fun readWorkouts(from: Instant, to: Instant): List<Workout> {
             lastFrom = from
             return workouts.filter { it.endTime >= from && it.startTime <= to }
+        }
+        override suspend fun readSensorSamples(from: Instant, to: Instant): SensorSamples {
+            sensorReads += from to to
+            return sensors
         }
     }
 
@@ -190,6 +197,26 @@ class SyncEngineTest {
         val source = FakeSource(listOf(workout("a", 1, RouteResult.Data(pts(2)))))
         val r = engine(source, FakeClient(failOn = { WandererHttpException(502, null) }), MemoryState()).run(Duration.ofDays(30))
         assertTrue(r.retryable)
+    }
+
+    @Test
+    fun sensorsAreReadPerWorkoutAndWrittenAsExtensions() = runTest {
+        val w = workout("a", 1, RouteResult.Data(pts(3)))
+        val hr = pts(3).map { SensorSample(it.time, 120.0) }
+        val source = FakeSource(listOf(w), SensorSamples(heartRateBpm = hr))
+        val client = FakeClient()
+        engine(source, client, MemoryState()).run(Duration.ofDays(30), includeSensors = true)
+        assertEquals(listOf(w.startTime to w.endTime), source.sensorReads)
+        assertTrue(client.uploads.single().second.contains("<gpxtpx:hr>120</gpxtpx:hr>"))
+    }
+
+    @Test
+    fun sensorsAreNotReadWhenDisabled() = runTest {
+        val source = FakeSource(listOf(workout("a", 1, RouteResult.Data(pts(2)))), SensorSamples(heartRateBpm = listOf(SensorSample(now, 99.0))))
+        val client = FakeClient()
+        engine(source, client, MemoryState()).run(Duration.ofDays(30), includeSensors = false)
+        assertTrue(source.sensorReads.isEmpty())
+        assertFalse(client.uploads.single().second.contains("gpxtpx:hr>"))
     }
 
     @Test

@@ -35,4 +35,20 @@ data class RoutePoint(
     val longitude: Double,
     val altitudeMeters: Double?,
     val horizontalAccuracyMeters: Double?,
+    /** Filled in by SensorMerge from the samples nearest in time; null = no sample close enough. */
+    val heartRateBpm: Int? = null,
+    /** Garmin convention: revolutions per minute (pedal rpm, or steps per minute ÷ 2 on foot). */
+    val cadenceRpm: Int? = null,
 )
+
+/** One timestamped sensor reading. */
+data class SensorSample(val time: Instant, val value: Double)
+
+/** Sensor series overlapping one workout, each sorted by time. */
+data class SensorSamples(
+    val heartRateBpm: List<SensorSample> = emptyList(),
+    val stepsPerMinute: List<SensorSample> = emptyList(),
+    val pedalRpm: List<SensorSample> = emptyList(),
+) {
+    val isEmpty: Boolean get() = heartRateBpm.isEmpty() && stepsPerMinute.isEmpty() && pedalRpm.isEmpty()
+}

@@ -35,6 +35,7 @@ app/src/main/java/ru/vehq/hcsync/
   hc/HealthConnectSource.kt — reads sessions + routes → domain objects
   hc/HealthConnectPermissions.kt — SDK status, granted set, requestable set
   gpx/GpxWriter.kt          — pure function: Workout -> String
+  gpx/SensorMerge.kt        — nearest-sample merge of HR/cadence onto points
   wanderer/WandererClient.kt— login, upload, cookie jar, one 401 retry
   sync/SyncEngine.kt        — read → filter done → gpx → upload → persist (pure Kotlin)
   sync/SyncWorker.kt        — CoroutineWorker wiring real deps into SyncEngine
@@ -83,6 +84,10 @@ against the pinned SDK version and update this section if anything moved.
     and its issue #226 (same watch, same symptom).
   - `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` — needed for
     WorkManager reads; API 35+, requested conditionally.
+  - `android.permission.health.READ_HEART_RATE` and
+    `android.permission.health.READ_STEPS` (`StepsCadenceRecord` is covered by
+    the steps permission; `CyclingPedalingCadenceRecord` by `READ_EXERCISE`)
+    — only when the sensor setting is on.
   - `android.permission.health.READ_HEALTH_DATA_HISTORY` — only when the
     "include history before install" setting is on (default off); without it
     the first sync reaches back 30 days.
@@ -138,9 +143,7 @@ and `web/src/lib/util/gpx_util.ts`.
   (TODO, not implemented).
 - Heart rate / cadence: Wanderer's GPX parser preserves Garmin
   `TrackPointExtension` (`gpxtpx:hr`, …) in the stored file but does not
-  display or index it. Not emitted in v1; Health Connect keeps heart rate in
-  separate `HeartRateRecord`s (extra permission) and would need joining by
-  time.
+  display or index it; other tools reading the downloaded GPX do.
 
 ## GPX output
 
@@ -155,9 +158,23 @@ GPX 1.1, one `<trk>` with one `<trkseg>`.
 | `<trkpt lat lon>` | per location |
 | `<trkpt><ele>` | only when altitude is present |
 | `<trkpt><time>` | ISO-8601 UTC |
+| `<trkpt><extensions><gpxtpx:TrackPointExtension>` | `hr` (bpm) and `cad` (rpm) when a sample lies within 30 s of the point; omitted otherwise |
 
-Output is validated once in a unit test against the GPX 1.1 XSD bundled as a
-test resource.
+Sensor data uses Garmin's TrackPointExtension **v1** namespace
+(`http://www.garmin.com/xmlschemas/TrackPointExtension/v1`), the variant
+every consumer parses (Wanderer preserves it; Strava, Garmin, Komoot read
+it). `cad` follows the Garmin convention: pedal rpm for cycling types,
+steps per minute ÷ 2 on foot. Speed, power and SpO₂ are not emitted: v1 has
+no field for them, and SpO₂ is a spot measurement, not a series.
+
+Samples come from `HeartRateRecord`, `StepsCadenceRecord` and
+`CyclingPedalingCadenceRecord` read for each workout's time span and merged
+onto points by nearest timestamp (`gpx/SensorMerge.kt`, pure Kotlin). The
+"heart rate and cadence" setting (default on) controls both the reads and
+the permission request; a series whose permission is missing is skipped.
+
+Output is validated once in a unit test against the GPX 1.1 XSD and the
+Garmin TrackPointExtension v1 XSD, both bundled as test resources.
 
 ## Sync engine rules
 

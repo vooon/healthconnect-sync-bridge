@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES" />
     <!-- Lets the WorkManager job read while we are not on screen (Health Connect feature, API 35+). -->
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+    <!-- Sensor series merged into the GPX as Garmin extensions; optional, see the "sensor data" toggle.
+         Step cadence is covered by READ_STEPS; pedalling cadence by READ_EXERCISE. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
     <!-- Data older than 30 days; requested only if the user opts in to history. -->
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <!-- Uploads to the Wanderer server. -->

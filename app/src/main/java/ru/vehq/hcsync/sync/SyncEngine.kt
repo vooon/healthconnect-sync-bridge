@@ -2,6 +2,7 @@ package ru.vehq.hcsync.sync
 
 import ru.vehq.hcsync.data.SyncStateStore
 import ru.vehq.hcsync.gpx.GpxWriter
+import ru.vehq.hcsync.gpx.SensorMerge
 import ru.vehq.hcsync.hc.HealthConnectSource
 import ru.vehq.hcsync.model.RouteResult
 import ru.vehq.hcsync.model.Workout
@@ -44,11 +45,13 @@ class SyncEngine(
     private val log: (String) -> Unit = {},
 ) {
     /**
-     * @param lookback how far back to read; 30 days without the history permission, more with it.
-     * @param consent  foreground only: asks the user for a single record's route; null = skip & count.
+     * @param lookback       how far back to read; 30 days without the history permission, more with it.
+     * @param includeSensors merge heart rate / cadence samples into the track points.
+     * @param consent        foreground only: asks the user for a single record's route; null = skip & count.
      */
     suspend fun run(
         lookback: Duration,
+        includeSensors: Boolean = false,
         consent: (suspend (Workout) -> RouteResult?)? = null,
     ): SyncResult {
         val now = clock()
@@ -82,8 +85,13 @@ class SyncEngine(
                         result = result.copy(skippedNoRoute = result.skippedNoRoute + 1)
                         continue
                     }
-                    val toUpload = w.copy(route = route)
                     try {
+                        val points = if (includeSensors) {
+                            SensorMerge.merge(route.points, source.readSensorSamples(w.startTime, w.endTime), w.exerciseType)
+                        } else {
+                            route.points
+                        }
+                        val toUpload = w.copy(route = RouteResult.Data(points))
                         val gpx = GpxWriter.write(toUpload, zone)
                         val trailId = client.uploadGpx(gpx, fileName(toUpload))
                         state.markDone(w.id, uploadedEnd = w.endTime)
