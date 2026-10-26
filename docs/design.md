@@ -57,7 +57,8 @@ against the pinned SDK version and update this section if anything moved.
     `altitude?`, `horizontalAccuracy?`. This is the track.
   - `ExerciseRouteResult.ConsentRequired` → bulk route permission not granted.
     Only the foreground "Sync now" path requests per-record consent via
-    `PermissionController.createRequestExerciseRouteContract()`. The
+    `androidx.health.connect.client.contracts.ExerciseRouteRequestContract`
+    (`ActivityResultContract<String /*record id*/, ExerciseRoute?>`). The
     background worker skips the record and counts it.
   - `ExerciseRouteResult.NoData` → the writing app stored no route. Skip,
     count, never retry.
@@ -83,6 +84,8 @@ against the pinned SDK version and update this section if anything moved.
   Google's `health-samples` repository; the source is noted in a comment.
 - `HealthConnectClient.getSdkStatus()` is checked before anything else;
   unavailable / needs-update states are shown on screen.
+- There is no `HealthPermission.PERMISSION_READ_EXERCISE_ROUTES` constant in
+  `connect-client` 1.1.0; the permission string is written out literally.
 - `exerciseType` is an int constant (`EXERCISE_TYPE_WALKING`, `_HIKING`,
   `_BIKING`, `_RUNNING`, …). Common ones map to a human label; everything
   else is "Workout".
@@ -198,3 +201,15 @@ watch and exports GPX. Borrow from it rather than re-deriving:
 
 Anything copied keeps the attribution header and a row in
 `THIRD_PARTY_NOTICES.md`, as required by `AGENTS.md`.
+
+## Build toolchain notes
+
+- `connect-client` 1.1.0 (newest stable as of 2026-10-26) verified with
+  `javap` to contain `HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`
+  / `FEATURE_READ_HEALTH_DATA_HISTORY`, the matching `HealthPermission`
+  constants, `ExerciseRouteResult.{Data,ConsentRequired,NoData}` and
+  `ExerciseRouteRequestContract`. `ExerciseRouteResult` is an abstract class,
+  not sealed, so `when` needs an `else`.
+- AGP 9 ships Kotlin built in; only the Compose compiler plugin is applied,
+  and its version (`kotlin` in the catalog) drives the Kotlin version used.
+- `compileSdk = 37`, `targetSdk = 36`, `minSdk = 34`.
