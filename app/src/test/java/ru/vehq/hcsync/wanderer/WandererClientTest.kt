@@ -83,6 +83,24 @@ class WandererClientTest {
     }
 
     @Test
+    fun findTrailByRecordIdFiltersOnDescription() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"items":[{"id":"t42","name":"Walk"}],"totalItems":1}"""))
+        assertEquals("t42", client().findTrailByRecordId("0f3a6a4e-1111-2222-3333-444455556666"))
+        val req = server.takeRequest()
+        assertEquals("GET", req.method)
+        assertEquals("/api/v1/trail", req.requestUrl!!.encodedPath)
+        assertEquals("description ~ \"0f3a6a4e-1111-2222-3333-444455556666\"", req.requestUrl!!.queryParameter("filter"))
+        assertEquals("1", req.requestUrl!!.queryParameter("perPage"))
+        assertEquals("Bearer wanderer_key_test123", req.getHeader("Authorization"))
+    }
+
+    @Test
+    fun findTrailByRecordIdReturnsNullWhenNothingMatches() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"items":[],"totalItems":0}"""))
+        assertEquals(null, client().findTrailByRecordId("nope"))
+    }
+
+    @Test
     fun testConnectionListsOwnTokenName() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"items":[{"id":"t1","name":"phone"}],"page":1}"""))
         assertEquals("Connected (token \"phone\")", client().testConnection())

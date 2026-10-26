@@ -21,6 +21,12 @@ interface WandererClient {
 
     /** Uploads one GPX document; returns the created trail id. */
     suspend fun uploadGpx(gpx: String, fileName: String): String
+
+    /**
+     * Id of an existing trail whose description carries this Health Connect record id, or null.
+     * Makes the server the source of truth for "already uploaded", so a reinstall does not re-upload.
+     */
+    suspend fun findTrailByRecordId(recordId: String): String?
 }
 
 /** Thrown for any non-2xx answer. [status] 401 means the API token was rejected. */
@@ -46,6 +52,17 @@ class OkHttpWandererClient(
         val items = json?.optJSONArray("items")
         val tokenName = items?.optJSONObject(0)?.optString("name").takeUnless { it.isNullOrEmpty() }
         if (tokenName != null) "Connected (token \"$tokenName\")" else "Connected"
+    }
+
+    override suspend fun findTrailByRecordId(recordId: String): String? = withContext(Dispatchers.IO) {
+        // PocketBase filter syntax; the record id is a UUID, so no quoting hazards inside the string.
+        val url = apiBase.newBuilder().addPathSegment("trail")
+            .addQueryParameter("filter", "description ~ \"$recordId\"")
+            .addQueryParameter("perPage", "1")
+            .build()
+        val body = execute(Request.Builder().url(url).get().build())
+        val items = runCatching { JSONObject(body).optJSONArray("items") }.getOrNull()
+        items?.optJSONObject(0)?.optString("id")?.takeIf { it.isNotEmpty() }
     }
 
     override suspend fun uploadGpx(gpx: String, fileName: String): String = withContext(Dispatchers.IO) {
