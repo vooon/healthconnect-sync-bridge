@@ -90,8 +90,11 @@ class MainActivity : ComponentActivity() {
             onHistoryChange = { state = state.copy(includeHistory = it) },
             onWifiOnlyChange = { state = state.copy(wifiOnly = it) },
             onChargingOnlyChange = { state = state.copy(chargingOnly = it) },
+            onSensorsChange = { state = state.copy(includeSensors = it) },
             onSave = { lifecycleScope.launch { busy(Target.SERVER) { saveSettings().let { s -> "Saved. Background sync every ${s.intervalMinutes} min" + (if (s.wifiOnly) " on Wi-Fi" else "") + (if (s.chargingOnly) " while charging" else "") + "." } } } },
-            onRequestPermissions = { permissionLauncher.launch(permissions.requestable(includeHistory = state.includeHistory)) },
+            onRequestPermissions = {
+                permissionLauncher.launch(permissions.requestable(includeHistory = state.includeHistory, includeSensors = state.includeSensors))
+            },
             onOpenHealthConnect = ::openHealthConnect,
             onTestConnection = { lifecycleScope.launch { busy(Target.SERVER) { testConnection() } } },
             onSyncNow = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow() } } },
@@ -145,6 +148,7 @@ class MainActivity : ComponentActivity() {
                 includeHistory = s.includeHistory,
                 wifiOnly = s.wifiOnly,
                 chargingOnly = s.chargingOnly,
+                includeSensors = s.includeSensors,
                 settingsLoaded = true,
             )
         }
@@ -210,6 +214,7 @@ class MainActivity : ComponentActivity() {
                 includeHistory = state.includeHistory,
                 wifiOnly = state.wifiOnly,
                 chargingOnly = state.chargingOnly,
+                includeSensors = state.includeSensors,
             )
         }
         withContext(Dispatchers.IO) { secrets.apiToken = state.apiToken }
@@ -233,7 +238,7 @@ class MainActivity : ComponentActivity() {
         require(HealthConnectPermissions.READ_EXERCISE in granted) { "Grant the exercise permission first" }
         val engine = SyncEngine(source, client(saved), syncState, log = { Log.i(TAG, it) })
         val lookback = SyncWorker.lookbackFor(saved.includeHistory, HealthConnectPermissions.READ_HISTORY in granted)
-        val result = engine.run(lookback, consent = ::askRouteConsent)
+        val result = engine.run(lookback, consent = ::askRouteConsent, includeSensors = saved.includeSensors)
         refreshPermissions()
         return buildString {
             append(result.summary()).append('\n')
@@ -256,7 +261,12 @@ class MainActivity : ComponentActivity() {
         val now = Instant.now()
         val workouts = source.readWorkouts(now.minus(Duration.ofDays(30)), now)
         Log.i(TAG, "probe: ${workouts.size} session(s)")
-        return formatProbeReport(workouts)
+        val sensors = if (state.includeSensors) {
+            workouts.associate { it.id to source.readSensorSamples(it.startTime, it.endTime) }
+        } else {
+            emptyMap()
+        }
+        return formatProbeReport(workouts, sensors = sensors)
     }
 
     private fun openHealthConnect() {

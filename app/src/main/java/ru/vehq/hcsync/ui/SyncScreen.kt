@@ -44,6 +44,7 @@ data class SyncUiState(
     val includeHistory: Boolean = false,
     val wifiOnly: Boolean = true,
     val chargingOnly: Boolean = false,
+    val includeSensors: Boolean = true,
     val settingsLoaded: Boolean = false,
     // Status.
     val serverNotice: Notice? = null,
@@ -64,6 +65,7 @@ class SyncScreenActions(
     val onHistoryChange: (Boolean) -> Unit,
     val onWifiOnlyChange: (Boolean) -> Unit,
     val onChargingOnlyChange: (Boolean) -> Unit,
+    val onSensorsChange: (Boolean) -> Unit,
     val onSave: () -> Unit,
     val onRequestPermissions: () -> Unit,
     val onOpenHealthConnect: () -> Unit,
@@ -114,6 +116,7 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         )
         ToggleRow("Background sync only on Wi-Fi", state.wifiOnly, actions.onWifiOnlyChange)
         ToggleRow("Background sync only while charging", state.chargingOnly, actions.onChargingOnlyChange)
+        ToggleRow("Include heart rate and cadence in the GPX", state.includeSensors, actions.onSensorsChange)
         ToggleRow("Include workouts older than 30 days (needs the history permission)", state.includeHistory, actions.onHistoryChange)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSave, enabled = !state.busy && state.settingsLoaded) { Text("Save & schedule") }
@@ -128,6 +131,10 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         PermissionRow("Read exercise sessions", HealthConnectPermissions.READ_EXERCISE in state.granted)
         PermissionRow("Read exercise routes (manual toggle)", HealthConnectPermissions.READ_EXERCISE_ROUTES in state.granted)
         PermissionRow("Read in background", HealthConnectPermissions.READ_BACKGROUND in state.granted)
+        if (state.includeSensors) {
+            PermissionRow("Read heart rate", HealthConnectPermissions.READ_HEART_RATE in state.granted)
+            PermissionRow("Read steps (cadence)", HealthConnectPermissions.READ_STEPS in state.granted)
+        }
         if (state.includeHistory) {
             PermissionRow("Read history (older than 30 days)", HealthConnectPermissions.READ_HISTORY in state.granted)
         }

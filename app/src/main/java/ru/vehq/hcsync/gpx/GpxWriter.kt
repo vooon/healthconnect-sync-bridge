@@ -13,10 +13,13 @@ import java.util.Locale
  * Workout → GPX 1.1 text. Pure Kotlin (no android.* types) so it runs in plain JUnit.
  *
  * Layout: one `<trk>` with one `<trkseg>`. The Health Connect record id goes into
- * `<metadata><desc>` because Wanderer maps that element to the trail description.
+ * `<metadata><desc>` because Wanderer maps that element to the trail description. Heart rate and
+ * cadence, when present on a point, go into Garmin's TrackPointExtension v1 (`gpxtpx:hr`,
+ * `gpxtpx:cad`), the de-facto standard that Wanderer, Strava, Garmin and Komoot read.
  */
 object GpxWriter {
     const val CREATOR = "Wanderer Sync"
+    const val TPX_NS = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
 
     private val nameTimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
@@ -40,7 +43,9 @@ object GpxWriter {
         sb.append("""<gpx version="1.1" creator="""").append(esc(CREATOR)).append('"')
             .append(""" xmlns="http://www.topografix.com/GPX/1/1"""")
             .append(""" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"""")
-            .append(""" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">""")
+            .append(""" xmlns:gpxtpx="""").append(TPX_NS).append('"')
+            .append(""" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd """)
+            .append(TPX_NS).append(""" https://www8.garmin.com/xmlschemas/TrackPointExtensionv1.xsd">""")
             .append('\n')
         // Element order inside <metadata> and <trk> is fixed by the XSD; keep it.
         sb.append("  <metadata>\n")
@@ -57,6 +62,13 @@ object GpxWriter {
             sb.append("""      <trkpt lat="""").append(coord(p.latitude)).append("""" lon="""").append(coord(p.longitude)).append("\">\n")
             p.altitudeMeters?.let { sb.append("        <ele>").append(ele(it)).append("</ele>\n") }
             sb.append("        <time>").append(time(p.time)).append("</time>\n")
+            if (p.heartRateBpm != null || p.cadenceRpm != null) {
+                // <extensions> must be the last child of <trkpt>; hr before cad per the Garmin XSD.
+                sb.append("        <extensions><gpxtpx:TrackPointExtension>")
+                p.heartRateBpm?.let { sb.append("<gpxtpx:hr>").append(it).append("</gpxtpx:hr>") }
+                p.cadenceRpm?.let { sb.append("<gpxtpx:cad>").append(it).append("</gpxtpx:cad>") }
+                sb.append("</gpxtpx:TrackPointExtension></extensions>\n")
+            }
             sb.append("      </trkpt>\n")
         }
         sb.append("    </trkseg>\n")

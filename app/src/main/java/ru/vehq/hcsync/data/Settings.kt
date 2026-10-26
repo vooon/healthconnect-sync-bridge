@@ -21,6 +21,8 @@ data class SettingsData(
     val wifiOnly: Boolean = true,
     /** Background runs only while charging. */
     val chargingOnly: Boolean = false,
+    /** Merge heart rate and cadence into the GPX (needs the heart-rate and steps permissions). */
+    val includeSensors: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_INTERVAL_MINUTES = 60
@@ -44,6 +46,7 @@ class Settings(context: Context) {
             includeHistory = p[KEY_HISTORY] ?: false,
             wifiOnly = p[KEY_WIFI_ONLY] ?: true,
             chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
+            includeSensors = p[KEY_SENSORS] ?: true,
         )
     }
 
@@ -58,6 +61,7 @@ class Settings(context: Context) {
                 includeHistory = p[KEY_HISTORY] ?: false,
                 wifiOnly = p[KEY_WIFI_ONLY] ?: true,
                 chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
+                includeSensors = p[KEY_SENSORS] ?: true,
             )
             result = block(current)
             p[KEY_SERVER_URL] = result.serverUrl
@@ -65,6 +69,7 @@ class Settings(context: Context) {
             p[KEY_HISTORY] = result.includeHistory
             p[KEY_WIFI_ONLY] = result.wifiOnly
             p[KEY_CHARGING_ONLY] = result.chargingOnly
+            p[KEY_SENSORS] = result.includeSensors
         }
         return result
     }
@@ -75,5 +80,6 @@ class Settings(context: Context) {
         val KEY_HISTORY = booleanPreferencesKey("include_history")
         val KEY_WIFI_ONLY = booleanPreferencesKey("wifi_only")
         val KEY_CHARGING_ONLY = booleanPreferencesKey("charging_only")
+        val KEY_SENSORS = booleanPreferencesKey("include_sensors")
     }
 }

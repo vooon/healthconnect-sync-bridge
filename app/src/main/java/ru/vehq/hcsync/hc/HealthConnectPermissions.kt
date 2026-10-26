@@ -5,6 +5,8 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.StepsCadenceRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,8 +34,12 @@ class HealthConnectPermissions(context: Context) {
      * Permissions the request dialog can grant. READ_EXERCISE_ROUTES is deliberately absent:
      * the dialog ignores it; the user must flip it under Health Connect → Additional access.
      */
-    fun requestable(includeHistory: Boolean): Set<String> = buildSet {
+    fun requestable(includeHistory: Boolean, includeSensors: Boolean): Set<String> = buildSet {
         add(READ_EXERCISE)
+        if (includeSensors) {
+            add(READ_HEART_RATE)
+            add(READ_STEPS) // StepsCadenceRecord is covered by the steps permission
+        }
         if (backgroundReadAvailable()) add(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
         if (includeHistory && historyReadAvailable()) add(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
     }
@@ -44,6 +50,8 @@ class HealthConnectPermissions(context: Context) {
 
     companion object {
         val READ_EXERCISE: String = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+        val READ_HEART_RATE: String = HealthPermission.getReadPermission(HeartRateRecord::class)
+        val READ_STEPS: String = HealthPermission.getReadPermission(StepsCadenceRecord::class)
 
         /** No constant for this in connect-client 1.1.0, so the literal from the manifest. */
         const val READ_EXERCISE_ROUTES = "android.permission.health.READ_EXERCISE_ROUTES"

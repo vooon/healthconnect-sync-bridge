@@ -2,6 +2,9 @@ package ru.vehq.hcsync.model
 
 import androidx.health.connect.client.records.ExerciseSessionRecord as R
 
+/** True for pedalling sports, where cadence means pedal rpm rather than steps. */
+fun isCyclingType(type: Int): Boolean = type == R.EXERCISE_TYPE_BIKING || type == R.EXERCISE_TYPE_BIKING_STATIONARY
+
 /** Human label for the common outdoor `EXERCISE_TYPE_*` values; everything else is "Workout". */
 fun exerciseTypeLabel(type: Int): String = when (type) {
     R.EXERCISE_TYPE_WALKING -> "Walk"
