@@ -83,6 +83,13 @@ press Run.)
 
 Background runs happen only on Wi-Fi by default; turn "only on Wi-Fi" off to
 allow mobile data, and "only while charging" on to wait for the charger.
+
+Android defers the background jobs of apps it considers rarely used (App
+Standby buckets: *working set* ~2 h, *frequent* ~8 h, *rare* once a day), so
+an hourly sync may not run for most of a day if you seldom open the app. The
+screen shows the current bucket next to "Battery optimized". **Allow
+unrestricted battery use** opens the system dialog that exempts the app;
+this is optional, and Sync now always works without it.
 "Include workouts older than 30 days" asks for Health Connect's history
 permission on the next **Grant permissions** and widens the first sync.
 
@@ -101,6 +108,14 @@ route, and how many sessions the last run saw. Background runs need the
 "Read in background" permission (shown on the screen) and a network that
 matches the toggles. WorkManager decides the exact minute;
 expect drift of a few minutes, and up to the interval after a reboot.
+
+If background runs seem to stop, check the job and the standby bucket:
+
+```sh
+adb shell dumpsys jobscheduler | grep -A 40 'SyncWorker#@androidx.work.systemjobscheduler@ru.vehq.hcsync'
+adb shell am get-standby-bucket ru.vehq.hcsync   # 10 active … 40 rare, 5 exempted
+adb shell dumpsys deviceidle whitelist | grep hcsync
+```
 
 ## Known limitations
 

@@ -2,8 +2,12 @@ package ru.vehq.hcsync
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.app.usage.UsageStatsManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings as SystemSettings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -96,6 +100,7 @@ class MainActivity : ComponentActivity() {
                 permissionLauncher.launch(permissions.requestable(includeHistory = state.includeHistory, includeSensors = state.includeSensors))
             },
             onOpenHealthConnect = ::openHealthConnect,
+            onBatterySettings = ::openBatterySettings,
             onTestConnection = { lifecycleScope.launch { busy(Target.SERVER) { testConnection() } } },
             onSyncNow = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow() } } },
             onResync = { lifecycleScope.launch { busy(Target.OUTPUT) { syncNow(recheckServer = true) } } },
@@ -134,6 +139,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshSdkStatus()
+        refreshBatteryState()
     }
 
     // ---- state loading -------------------------------------------------------------------------
@@ -166,6 +172,21 @@ class MainActivity : ComponentActivity() {
             },
         )
         if (status == HealthConnectClient.SDK_AVAILABLE) refreshPermissions()
+    }
+
+    /** Doze/App Standby exemption and the standby bucket; shown so a deferred background job is explainable. */
+    private fun refreshBatteryState() {
+        val exempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+        val bucket = when (getSystemService(UsageStatsManager::class.java).appStandbyBucket) {
+            5 -> "exempted" // STANDBY_BUCKET_EXEMPTED is @SystemApi, hence the literal.
+            UsageStatsManager.STANDBY_BUCKET_ACTIVE -> "active"
+            UsageStatsManager.STANDBY_BUCKET_WORKING_SET -> "working set"
+            UsageStatsManager.STANDBY_BUCKET_FREQUENT -> "frequent"
+            UsageStatsManager.STANDBY_BUCKET_RARE -> "rare"
+            UsageStatsManager.STANDBY_BUCKET_RESTRICTED -> "restricted"
+            else -> "unknown"
+        }
+        state = state.copy(batteryUnrestricted = exempt, standbyBucket = bucket)
     }
 
     private fun refreshPermissions() {
@@ -279,6 +300,19 @@ class MainActivity : ComponentActivity() {
         // Deep link into Health Connect's settings; the route toggle lives under Additional access.
         runCatching { startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) }
             .onFailure { state = state.copy(syncNotice = Notice("Cannot open Health Connect: ${it.message}", isError = true)) }
+    }
+
+    private fun openBatterySettings() {
+        // Not exempt: the system "let app always run in background?" dialog sets Unrestricted in one tap
+        // (needs REQUEST_IGNORE_BATTERY_OPTIMIZATIONS in the manifest). Exempt: the app's info page, where
+        // Battery → Optimized reverts it. Never asked automatically; the user decides from the screen.
+        val action = if (state.batteryUnrestricted) {
+            SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS
+        } else {
+            SystemSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+        }
+        runCatching { startActivity(Intent(action, Uri.parse("package:$packageName"))) }
+            .onFailure { state = state.copy(serverNotice = Notice("Cannot open battery settings: ${it.message}", isError = true)) }
     }
 
     private fun copyOutput() {
