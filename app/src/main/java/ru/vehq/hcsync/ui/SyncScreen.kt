@@ -2,6 +2,7 @@ package ru.vehq.hcsync.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -119,7 +120,8 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         ToggleRow("Background sync only while charging", state.chargingOnly, actions.onChargingOnlyChange)
         ToggleRow("Include heart rate and cadence in the GPX", state.includeSensors, actions.onSensorsChange)
         ToggleRow("Include workouts older than 30 days (needs the history permission)", state.includeHistory, actions.onHistoryChange)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // FlowRow wraps buttons onto a second line on narrow screens instead of squeezing the last one.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSave, enabled = !state.busy && state.settingsLoaded) { Text("Save & schedule") }
             OutlinedButton(onClick = actions.onTestConnection, enabled = canAct) { Text("Test connection") }
         }
@@ -139,7 +141,7 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         if (state.includeHistory) {
             PermissionRow("Read history (older than 30 days)", HealthConnectPermissions.READ_HISTORY in state.granted)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onRequestPermissions, enabled = canAct) { Text("Grant permissions") }
             OutlinedButton(onClick = actions.onOpenHealthConnect, enabled = state.sdkAvailable) { Text("Open Health Connect") }
         }
@@ -156,7 +158,7 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         Text("Last run: " + (state.lastRunAt?.let { statusTimeFormat.format(it.atZone(ZoneId.systemDefault())) } ?: "never") +
             (state.lastRunAt?.let { " · ${state.lastSeen} session(s) in window" } ?: ""))
         Text("Last result: " + (state.lastResult ?: "–"))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions.onSyncNow, enabled = canAct) { Text(if (state.busy) "Working…" else "Sync now") }
             OutlinedButton(onClick = actions.onResync, enabled = canAct) { Text("Re-sync") }
             OutlinedButton(onClick = actions.onProbe, enabled = canAct) { Text("Probe") }
