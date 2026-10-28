@@ -46,6 +46,7 @@ data class SyncUiState(
     val wifiOnly: Boolean = true,
     val chargingOnly: Boolean = false,
     val includeSensors: Boolean = true,
+    val syncOnWifiConnect: Boolean = true,
     val settingsLoaded: Boolean = false,
     // Battery: `PowerManager.isIgnoringBatteryOptimizations` and the App Standby bucket name ("rare", …).
     val batteryUnrestricted: Boolean = false,
@@ -70,6 +71,7 @@ class SyncScreenActions(
     val onWifiOnlyChange: (Boolean) -> Unit,
     val onChargingOnlyChange: (Boolean) -> Unit,
     val onSensorsChange: (Boolean) -> Unit,
+    val onWifiConnectChange: (Boolean) -> Unit,
     val onSave: () -> Unit,
     val onRequestPermissions: () -> Unit,
     val onOpenHealthConnect: () -> Unit,
@@ -122,6 +124,7 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
         )
         ToggleRow("Background sync only on Wi-Fi", state.wifiOnly, actions.onWifiOnlyChange)
         ToggleRow("Background sync only while charging", state.chargingOnly, actions.onChargingOnlyChange)
+        ToggleRow("Also sync when Wi-Fi connects, and again 10 min later", state.syncOnWifiConnect, actions.onWifiConnectChange)
         ToggleRow("Include heart rate and cadence in the GPX", state.includeSensors, actions.onSensorsChange)
         ToggleRow("Include workouts older than 30 days (needs the history permission)", state.includeHistory, actions.onHistoryChange)
         // FlowRow wraps buttons onto a second line on narrow screens instead of squeezing the last one.

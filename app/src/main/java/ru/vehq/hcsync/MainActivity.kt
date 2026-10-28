@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
             onWifiOnlyChange = { state = state.copy(wifiOnly = it) },
             onChargingOnlyChange = { state = state.copy(chargingOnly = it) },
             onSensorsChange = { state = state.copy(includeSensors = it) },
+            onWifiConnectChange = { state = state.copy(syncOnWifiConnect = it) },
             onSave = { lifecycleScope.launch { busy(Target.SERVER) { saveSettings().let { s -> "Saved. Background sync every ${s.intervalMinutes} min" + (if (s.wifiOnly) " on Wi-Fi" else "") + (if (s.chargingOnly) " while charging" else "") + "." } } } },
             onRequestPermissions = {
                 permissionLauncher.launch(permissions.requestable(includeHistory = state.includeHistory, includeSensors = state.includeSensors))
@@ -156,8 +157,11 @@ class MainActivity : ComponentActivity() {
                 wifiOnly = s.wifiOnly,
                 chargingOnly = s.chargingOnly,
                 includeSensors = s.includeSensors,
+                syncOnWifiConnect = s.syncOnWifiConnect,
                 settingsLoaded = true,
             )
+            // Re-apply the schedule on every start so jobs added by an app update exist without a Save.
+            if (s.serverUrl.isNotBlank()) SyncScheduler.schedule(this@MainActivity, s)
         }
     }
 
@@ -237,6 +241,7 @@ class MainActivity : ComponentActivity() {
                 wifiOnly = state.wifiOnly,
                 chargingOnly = state.chargingOnly,
                 includeSensors = state.includeSensors,
+                syncOnWifiConnect = state.syncOnWifiConnect,
             )
         }
         withContext(Dispatchers.IO) { secrets.apiToken = state.apiToken }

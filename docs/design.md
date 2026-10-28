@@ -246,10 +246,51 @@ system exemption dialog (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, or
 the app's info page once exempt). The dialog is never shown on its own; the
 exemption stays optional.
 
+### Wi-Fi trigger
+
+"Also sync when Wi-Fi connects" (default on) runs the sync as soon as the
+phone is back on Wi-Fi, e.g. home after a walk, and once more 10 min later
+because some recording apps write the session to Health Connect with a
+delay. Android has no persistent "network connected" hook for apps without
+a running process except one: `ConnectivityManager.registerNetworkCallback(
+NetworkRequest, PendingIntent)`. That registration outlives the process, but
+the system sends the intent **once** and then releases the request (AOSP
+`ConnectivityService.sendPendingIntentForRequest`, `mPendingIntentSent`), and
+arming it while Wi-Fi is already up fires immediately. Hence:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unarmed
+    Unarmed --> Armed: WifiArmWorker (every 15 min, no constraints) or BootReceiver, Wi-Fi down
+    Unarmed --> Unarmed: WifiArmWorker, Wi-Fi up
+    Armed --> Fired: Wi-Fi network available → PendingIntent → WifiSyncReceiver
+    Fired --> Unarmed: system releases the one-shot request
+    Fired --> Runs: enqueue SyncWorker now (expedited) + SyncWorker in 10 min
+```
+
+- `WifiSyncReceiver` (unexported; the intent is sent with our identity)
+  enqueues two unique one-time `SyncWorker` requests, `wanderer-sync-wifi-now`
+  and `wanderer-sync-wifi-later`, with the same constraints as the periodic
+  job and policy `KEEP`. The immediate one is expedited
+  (`RUN_AS_NON_EXPEDITED_WORK_REQUEST`) unless "only while charging" is on,
+  because expedited requests accept only network and storage constraints.
+- The periodic and the Wi-Fi requests have different unique names, so
+  WorkManager may start two `SyncWorker`s at once; a process-wide `Mutex` in
+  the worker serialises them so two engines never upload the same record.
+- `BootReceiver` (exported, `BOOT_COMPLETED` is protected) re-arms after a
+  reboot since network-callback registrations do not survive one.
+- Turning the setting off cancels the arming job and unregisters the
+  callback. The trigger watches Wi-Fi only; with "only on Wi-Fi" off the
+  periodic job still covers mobile data.
+- Limits: a walk shorter than the arming period may end before the trigger
+  is armed, and the arming job is subject to the same App Standby deferral
+  as everything else, so the battery exemption matters here too.
+
 ## Screen
 
 Fields: server URL, API token (password-masked), sync interval, toggles for
-Wi-Fi only, charging only and "include workouts older than 30 days". Buttons: Save & schedule, Test
+Wi-Fi only, charging only, "also sync when Wi-Fi connects" and "include
+workouts older than 30 days". Buttons: Save & schedule, Test
 connection (`GET /api-token`), Allow unrestricted battery use / Battery
 settings (see Scheduling), Grant permissions, Open Health Connect, Sync
 now (foreground, resolves `ConsentRequired` through the route contract),

@@ -23,6 +23,10 @@
     <!-- Lets the "Allow unrestricted battery use" button show the system dialog
          (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); only ever triggered by that button. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Wi-Fi trigger (sync/WifiTrigger.kt): ConnectivityManager.registerNetworkCallback needs
+         ACCESS_NETWORK_STATE; the registration is lost at reboot, hence RECEIVE_BOOT_COMPLETED. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
@@ -52,6 +56,19 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity>
+
+        <!-- Receives the Wi-Fi PendingIntent from ConnectivityManager (sent as us, so unexported is fine). -->
+        <receiver
+            android:name=".sync.WifiSyncReceiver"
+            android:exported="false" />
+        <!-- Re-arms the Wi-Fi trigger after a reboot; BOOT_COMPLETED is a protected broadcast. -->
+        <receiver
+            android:name=".sync.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Package visibility: lets us resolve the Health Connect provider and its settings intents. -->
