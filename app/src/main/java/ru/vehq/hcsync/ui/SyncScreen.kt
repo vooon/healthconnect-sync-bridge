@@ -47,6 +47,9 @@ data class SyncUiState(
     val chargingOnly: Boolean = false,
     val includeSensors: Boolean = true,
     val settingsLoaded: Boolean = false,
+    // Battery: `PowerManager.isIgnoringBatteryOptimizations` and the App Standby bucket name ("rare", …).
+    val batteryUnrestricted: Boolean = false,
+    val standbyBucket: String = "",
     // Status.
     val serverNotice: Notice? = null,
     val syncNotice: Notice? = null,
@@ -70,6 +73,7 @@ class SyncScreenActions(
     val onSave: () -> Unit,
     val onRequestPermissions: () -> Unit,
     val onOpenHealthConnect: () -> Unit,
+    val onBatterySettings: () -> Unit,
     val onTestConnection: () -> Unit,
     val onSyncNow: () -> Unit,
     val onResync: () -> Unit,
@@ -126,6 +130,20 @@ fun SyncScreen(state: SyncUiState, actions: SyncScreenActions, modifier: Modifie
             OutlinedButton(onClick = actions.onTestConnection, enabled = canAct) { Text("Test connection") }
         }
         NoticeText(state.serverNotice)
+        PermissionRow(
+            (if (state.batteryUnrestricted) "Unrestricted battery use" else "Battery optimized") +
+                (if (state.standbyBucket.isNotEmpty()) " · standby bucket: ${state.standbyBucket}" else ""),
+            state.batteryUnrestricted,
+        )
+        Text(
+            "Android defers background jobs of apps it decides are rarely used: in the \"rare\" bucket about once " +
+                "a day, whatever interval is set above. Unrestricted battery use exempts this app from that. " +
+                "It is optional; Sync now always works.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(onClick = actions.onBatterySettings) {
+            Text(if (state.batteryUnrestricted) "Battery settings" else "Allow unrestricted battery use")
+        }
 
         HorizontalDivider()
 

@@ -20,6 +20,9 @@
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <!-- Uploads to the Wanderer server. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets the "Allow unrestricted battery use" button show the system dialog
+         (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); only ever triggered by that button. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:allowBackup="false"

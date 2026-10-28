@@ -233,18 +233,34 @@ interval 60 min, user-settable; WorkManager's minimum is 15 min. It is
 (re-)enqueued with `ExistingPeriodicWorkPolicy.UPDATE` whenever settings
 are saved.
 
+The interval is a lower bound. Android's App Standby sorts apps into
+buckets by predicted use and defers their jobs accordingly: *working set*
+about every 2 h, *frequent* every 8 h, *rare* once a day. An app that is
+opened only occasionally lands in *rare* within hours (observed on a
+Galaxy S25: rare three hours after last use, no hourly runs until the app
+was opened again). Apps on the battery-optimization allowlist are exempt.
+The screen therefore shows the exemption state and the current bucket
+(`PowerManager.isIgnoringBatteryOptimizations`,
+`UsageStatsManager.getAppStandbyBucket`) and offers a button that opens the
+system exemption dialog (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, or
+the app's info page once exempt). The dialog is never shown on its own; the
+exemption stays optional.
+
 ## Screen
 
 Fields: server URL, API token (password-masked), sync interval, toggles for
 Wi-Fi only, charging only and "include workouts older than 30 days". Buttons: Save & schedule, Test
-connection (`GET /api-token`), Grant permissions, Open Health Connect, Sync
+connection (`GET /api-token`), Allow unrestricted battery use / Battery
+settings (see Scheduling), Grant permissions, Open Health Connect, Sync
 now (foreground, resolves `ConsentRequired` through the route contract),
 Re-sync (same, but asks the server about every workout in the window),
 Probe (lists the last 30 days of sessions with type, start, route status and
 point count), Copy. Status: Health Connect SDK status, per-permission ✔/✘,
 running totals (trails uploaded, sessions without route), last run with
 the number of sessions seen in the window, last result, and a monospace
-output area for probe / sync text. Save and Test connection report in a
+output area for probe / sync text. Under the server settings a ✔/✘ line
+shows the battery-exemption state and the App Standby bucket, with a short
+explanation of why the job may be deferred. Save and Test connection report in a
 one-line notice under their own buttons; Sync now and Probe under theirs.
 
 ## Security / logging
