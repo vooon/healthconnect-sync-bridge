@@ -16,6 +16,12 @@ import java.util.Locale
  * `<metadata><desc>` because Wanderer maps that element to the trail description. Heart rate and
  * cadence, when present on a point, go into Garmin's TrackPointExtension v1 (`gpxtpx:hr`,
  * `gpxtpx:cad`), the de-facto standard that Wanderer, Strava, Garmin and Komoot read.
+ *
+ * Why a StringBuilder and not an XML library: the document is flat and fully under our control, so
+ * a serializer would only buy escaping (see [esc]) and well-formedness, not the strict element order
+ * the GPX XSD demands. `android.util.Xml` would tie this file to Android and break the JVM tests,
+ * Android has no StAX, and a DOM of tens of thousands of track points is wasted memory. The output
+ * is validated against the GPX 1.1 schema in `GpxWriterTest`.
  */
 object GpxWriter {
     const val CREATOR = "Wanderer Sync"
