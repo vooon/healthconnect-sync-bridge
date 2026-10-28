@@ -275,8 +275,10 @@ stateDiagram-v2
   (`RUN_AS_NON_EXPEDITED_WORK_REQUEST`) unless "only while charging" is on,
   because expedited requests accept only network and storage constraints.
 - The periodic and the Wi-Fi requests have different unique names, so
-  WorkManager may start two `SyncWorker`s at once; a process-wide `Mutex` in
-  the worker serialises them so two engines never upload the same record.
+  WorkManager may start two `SyncWorker`s at once. A process-wide `Mutex`
+  in the worker prevents two engines uploading the same record: the second
+  waits up to 1 s, then skips the run (logged), since the one in progress
+  covers the same window and the next scheduled run is never far away.
 - `BootReceiver` (exported, `BOOT_COMPLETED` is protected) re-arms after a
   reboot since network-callback registrations do not survive one.
 - Turning the setting off cancels the arming job and unregisters the
