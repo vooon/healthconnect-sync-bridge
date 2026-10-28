@@ -83,6 +83,11 @@ press Run.)
 
 Background runs happen only on Wi-Fi by default; turn "only on Wi-Fi" off to
 allow mobile data, and "only while charging" on to wait for the charger.
+"Also sync when Wi-Fi connects" (default on) runs the sync as soon as the
+phone is back on Wi-Fi, for instance at home after a walk, and once more
+10 minutes later for apps that write the workout to Health Connect late.
+It is armed by a small job every 15 minutes while Wi-Fi is down, so a walk
+shorter than that may still wait for the regular interval.
 
 Android defers the background jobs of apps it considers rarely used (App
 Standby buckets: *working set* ~2 h, *frequent* ~8 h, *rare* once a day), so
@@ -116,6 +121,9 @@ adb shell dumpsys jobscheduler | grep -A 40 'SyncWorker#@androidx.work.systemjob
 adb shell am get-standby-bucket ru.vehq.hcsync   # 10 active … 40 rare, 5 exempted
 adb shell dumpsys deviceidle whitelist | grep hcsync
 ```
+
+The Wi-Fi trigger logs "Wi-Fi trigger armed" and "Wi-Fi connected: sync
+enqueued" under the same `SyncWorker` tag.
 
 ## Known limitations
 

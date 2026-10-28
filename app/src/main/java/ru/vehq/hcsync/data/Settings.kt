@@ -23,6 +23,8 @@ data class SettingsData(
     val chargingOnly: Boolean = false,
     /** Merge heart rate and cadence into the GPX (needs the heart-rate and steps permissions). */
     val includeSensors: Boolean = true,
+    /** Also run when the phone connects to Wi-Fi, and again 10 min later (see sync/WifiTrigger.kt). */
+    val syncOnWifiConnect: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_INTERVAL_MINUTES = 60
@@ -47,6 +49,7 @@ class Settings(context: Context) {
             wifiOnly = p[KEY_WIFI_ONLY] ?: true,
             chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
             includeSensors = p[KEY_SENSORS] ?: true,
+            syncOnWifiConnect = p[KEY_WIFI_CONNECT] ?: true,
         )
     }
 
@@ -62,6 +65,7 @@ class Settings(context: Context) {
                 wifiOnly = p[KEY_WIFI_ONLY] ?: true,
                 chargingOnly = p[KEY_CHARGING_ONLY] ?: false,
                 includeSensors = p[KEY_SENSORS] ?: true,
+                syncOnWifiConnect = p[KEY_WIFI_CONNECT] ?: true,
             )
             result = block(current)
             p[KEY_SERVER_URL] = result.serverUrl
@@ -70,6 +74,7 @@ class Settings(context: Context) {
             p[KEY_WIFI_ONLY] = result.wifiOnly
             p[KEY_CHARGING_ONLY] = result.chargingOnly
             p[KEY_SENSORS] = result.includeSensors
+            p[KEY_WIFI_CONNECT] = result.syncOnWifiConnect
         }
         return result
     }
@@ -81,5 +86,6 @@ class Settings(context: Context) {
         val KEY_WIFI_ONLY = booleanPreferencesKey("wifi_only")
         val KEY_CHARGING_ONLY = booleanPreferencesKey("charging_only")
         val KEY_SENSORS = booleanPreferencesKey("include_sensors")
+        val KEY_WIFI_CONNECT = booleanPreferencesKey("sync_on_wifi_connect")
     }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.vehq.hcsync.data.DataStoreSyncState
 import ru.vehq.hcsync.data.Secrets
 import ru.vehq.hcsync.data.Settings
@@ -14,12 +16,30 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Periodic background sync. WorkManager instantiates this by class name (see SyncScheduler),
- * so all dependencies are built here from the application context.
+ * Background sync, run periodically (SyncScheduler) and after a Wi-Fi connect (WifiTrigger).
+ * WorkManager instantiates this by class name, so all dependencies are built here from the
+ * application context.
  */
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
+    // The periodic and the Wi-Fi-triggered requests have different unique names, so WorkManager may
+    // start two at once; both run in this process, and two engines over the same records would
+    // upload duplicates. The second waits briefly, then skips: the run in progress covers the same
+    // window, and re-reading everything a few seconds later would only cost battery.
     override suspend fun doWork(): Result {
+        val acquired = withTimeoutOrNull(LOCK_WAIT.toMillis()) { runLock.lock() } != null
+        if (!acquired) {
+            Log.i(TAG, "skipping run: another sync is in progress")
+            return Result.success()
+        }
+        try {
+            return doWorkLocked()
+        } finally {
+            runLock.unlock()
+        }
+    }
+
+    private suspend fun doWorkLocked(): Result {
         val context = applicationContext
         val settings = Settings(context).read()
         val secrets = Secrets(context)
@@ -66,6 +86,11 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     companion object {
         /** Tag to filter with: `adb logcat -s SyncWorker`. */
         const val TAG = "SyncWorker"
+
+        private val runLock = Mutex()
+
+        /** How long a second worker waits for a running one before it gives up and skips. */
+        private val LOCK_WAIT: Duration = Duration.ofSeconds(1)
 
         /** WorkManager stops a worker after 10 min; stop starting uploads well before that. */
         val RUN_BUDGET: Duration = Duration.ofMinutes(6)
