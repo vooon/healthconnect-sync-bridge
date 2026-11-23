@@ -1,10 +1,10 @@
 # Versions checked against Google Maven / Maven Central on 2026-10-26.
 [versions]
-agp = "9.5.0"
+agp = "9.5.2"
 # AGP 9 has Kotlin built in; this version is for the Compose compiler plugin
 # and pulls the matching Kotlin Gradle plugin.
 kotlin = "2.4.21"
-compose-bom = "2026.09.00"
+compose-bom = "2026.11.01"
 activity-compose = "1.13.0"
 lifecycle = "2.11.0"
 core-ktx = "1.19.1"
